@@ -22,24 +22,11 @@ export async function POST(request: NextRequest) {
 
     // Check authentication - with better error handling
     try {
-      // Create the Supabase client with the correct cookie handling for Next.js 13+
-      const supabase = createRouteHandlerClient({ 
-        cookies 
-      }, {
-        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-        supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-      });
-      
-      // Get the session
-      const { error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error('Supabase auth error:', error);
-        // Continue without authentication for now
-      }
+      // Skip authentication check for now
+      // We'll handle this differently to avoid the cookies() issue
+      console.log('Authentication check skipped to avoid cookies() issue');
     } catch (authError) {
       console.error('Error checking authentication:', authError);
-      // Continue without authentication for now
     }
 
     // Initialize Perplexity client
@@ -51,38 +38,50 @@ export async function POST(request: NextRequest) {
     // Construct the prompt based on what was provided
     let prompt = '';
     if (startupName && !founderName) {
-      prompt = `Analyze startup "${startupName}" in bullet points:
-      1. Overview: 3 bullet points on what they do and current status
-      2. Market: 3 bullet points on market size and growth
-      3. Competition: 3 bullet points on key competitors and advantages
-      4. Business Model: 3 bullet points on revenue streams
-      5. Team: 3 bullet points on founders and key executives
-      6. Risks: 3 bullet points on major challenges
-      7. Investment: 3 bullet points on investment potential
+      prompt = `You are an expert startup analyst.
+
+      Analyze the startup "${startupName}" in concise bullet points:
       
-      Keep each bullet point under 15 words. Be direct and factual.`;
+      1. Product & Value Proposition: What specific problem do they solve? How is their product differentiated?
+      2. Market Opportunity: How large is their target market? Is the market growing? Why now?
+      3. Competitive Landscape: Who are the main competitors? What is ${startupName}'s edge?
+      4. Business Model: How does ${startupName} make money? Are margins sustainable?
+      5. Traction & Growth: Evidence of user growth, revenue, partnerships, or notable milestones?
+      6. Founders & Team: Who are the key people? Highlight unique skills or experiences.
+      7. Risks & Challenges: What factors could prevent ${startupName} from succeeding?
+      8. Investment Outlook: Strengths and weaknesses from an investor perspective.
+      
+      Keep each bullet point under 15 words. Focus on specific facts, avoid generic statements.`;
     } else if (founderName && !startupName) {
-      prompt = `Analyze founder "${founderName}" in bullet points:
-      1. Overview: 3 bullet points on background and ventures
-      2. Market: 3 bullet points on markets their startups target
-      3. Competition: 3 bullet points on competitive positioning
-      4. Business Model: 3 bullet points on how their ventures monetize
-      5. Leadership: 3 bullet points on ${founderName}'s leadership style
-      6. Risks: 3 bullet points on challenges their ventures face
-      7. Investment: 3 bullet points on track record with investors
+      prompt = `You are an expert startup analyst.
+
+      Analyze the founder "${founderName}" in concise bullet points:
       
-      Keep each bullet point under 15 words. Be direct and factual.`;
+      1. Background: Brief education, past ventures, notable achievements.
+      2. Founder-Market Fit: Why is ${founderName} well-suited to lead startups in their field?
+      3. Track Record: Successes or failures with previous startups? Key learnings?
+      4. Leadership Style: What is known about their leadership or management approach?
+      5. Vision: What long-term vision or ambitions have they publicly shared?
+      6. Network & Investors: Relationships with notable VCs, accelerators, or influential figures?
+      7. Risks: Any controversies, execution risks, or concerns?
+      8. Investment Potential: Would an investor bet on ${founderName} based on history and leadership?
+      
+      Each bullet point under 15 words. Focus on direct, factual, and insightful points.`;
     } else {
-      prompt = `Analyze startup "${startupName}" by "${founderName}" in bullet points:
-      1. Overview: 3 bullet points on what they do and current status
-      2. Market: 3 bullet points on market size and growth
-      3. Competition: 3 bullet points on key competitors and advantages
-      4. Business Model: 3 bullet points on revenue streams
-      5. Team: 3 bullet points on ${founderName} and leadership
-      6. Risks: 3 bullet points on major challenges
-      7. Investment: 3 bullet points on investment potential
+      prompt = `You are an expert startup analyst.
+
+      Analyze the startup "${startupName}" founded by "${founderName}" in concise bullet points:
       
-      Keep each bullet point under 15 words. Be direct and factual.`;
+      1. Product & Value Proposition: What specific problem do they solve? How is their product differentiated?
+      2. Market Opportunity: How large is their target market? Is the market growing? Why now?
+      3. Competitive Landscape: Who are the main competitors? What is ${startupName}'s edge?
+      4. Business Model: How does ${startupName} make money? Are margins sustainable?
+      5. Traction & Growth: Evidence of user growth, revenue, partnerships, or notable milestones?
+      6. Founders & Team: Focus on ${founderName}'s background and leadership. Highlight unique skills.
+      7. Risks & Challenges: What factors could prevent ${startupName} from succeeding?
+      8. Investment Outlook: Strengths and weaknesses from an investor perspective.
+      
+      Keep each bullet point under 15 words. Focus on specific facts, avoid generic statements.`;
     }
 
     // Create the messages array with proper typing
@@ -142,43 +141,46 @@ export async function POST(request: NextRequest) {
 function parseContentIntoSections(content: string) {
   // Default structure in case parsing fails
   const defaultSections = {
-    overview: '',
+    productValueProposition: '',
     marketOpportunity: '',
     competitiveLandscape: '',
     businessModel: '',
-    teamAssessment: '',
+    tractionGrowth: '',
+    foundersTeam: '',
     risksAndChallenges: '',
-    investmentPotential: ''
+    investmentOutlook: ''
   };
 
   try {
     // Split by common section headers
     const sections = {
-      overview: extractSection(content, /(Overview|1\.?\s*Overview)/i, /(Market|2\.?\s*Market)/i),
-      marketOpportunity: extractSection(content, /(Market|Market Opportunity|2\.?\s*Market)/i, /(Competition|Competitive|3\.?\s*Competition)/i),
-      competitiveLandscape: extractSection(content, /(Competition|Competitive|3\.?\s*Competition)/i, /(Business|4\.?\s*Business)/i),
-      businessModel: extractSection(content, /(Business|Business Model|4\.?\s*Business)/i, /(Team|Leadership|5\.?\s*Team)/i),
-      teamAssessment: extractSection(content, /(Team|Leadership|5\.?\s*Team)/i, /(Risks|6\.?\s*Risks)/i),
-      risksAndChallenges: extractSection(content, /(Risks|Risks and Challenges|6\.?\s*Risks)/i, /(Investment|7\.?\s*Investment)/i),
-      investmentPotential: extractSection(content, /(Investment|Investment Potential|7\.?\s*Investment)/i, /$/i)
+      productValueProposition: extractSection(content, /(Product & Value Proposition|1\.?\s*Product)/i, /(Market Opportunity|2\.?\s*Market)/i),
+      marketOpportunity: extractSection(content, /(Market Opportunity|2\.?\s*Market)/i, /(Competitive Landscape|3\.?\s*Competitive)/i),
+      competitiveLandscape: extractSection(content, /(Competitive Landscape|3\.?\s*Competitive)/i, /(Business Model|4\.?\s*Business)/i),
+      businessModel: extractSection(content, /(Business Model|4\.?\s*Business)/i, /(Traction & Growth|5\.?\s*Traction)/i),
+      tractionGrowth: extractSection(content, /(Traction & Growth|5\.?\s*Traction)/i, /(Founders & Team|6\.?\s*Founders)/i),
+      foundersTeam: extractSection(content, /(Founders & Team|Background|6\.?\s*Founders)/i, /(Risks & Challenges|7\.?\s*Risks)/i),
+      risksAndChallenges: extractSection(content, /(Risks & Challenges|7\.?\s*Risks)/i, /(Investment Outlook|8\.?\s*Investment)/i),
+      investmentOutlook: extractSection(content, /(Investment Outlook|8\.?\s*Investment)/i, /$/i)
     };
 
     // Format each section to ensure bullet points are properly displayed
     return {
-      overview: formatBulletPoints(sections.overview),
+      productValueProposition: formatBulletPoints(sections.productValueProposition),
       marketOpportunity: formatBulletPoints(sections.marketOpportunity),
       competitiveLandscape: formatBulletPoints(sections.competitiveLandscape),
       businessModel: formatBulletPoints(sections.businessModel),
-      teamAssessment: formatBulletPoints(sections.teamAssessment),
+      tractionGrowth: formatBulletPoints(sections.tractionGrowth),
+      foundersTeam: formatBulletPoints(sections.foundersTeam),
       risksAndChallenges: formatBulletPoints(sections.risksAndChallenges),
-      investmentPotential: formatBulletPoints(sections.investmentPotential)
+      investmentOutlook: formatBulletPoints(sections.investmentOutlook)
     };
   } catch (error) {
     console.error('Error parsing content into sections:', error);
     // If parsing fails, return the full content in the overview section
     return {
       ...defaultSections,
-      overview: content.trim()
+      productValueProposition: content.trim()
     };
   }
 }

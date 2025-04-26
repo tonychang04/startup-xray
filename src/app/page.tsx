@@ -14,13 +14,14 @@ const analysisSchema = z.object({
 type AnalysisFormData = z.infer<typeof analysisSchema>;
 
 interface AnalysisResult {
-  overview: string;
+  productValueProposition: string;
   marketOpportunity: string;
   competitiveLandscape: string;
   businessModel: string;
-  teamAssessment: string;
+  tractionGrowth: string;
+  foundersTeam: string;
   risksAndChallenges: string;
-  investmentPotential: string;
+  investmentOutlook: string;
 }
 
 export default function Home() {
@@ -33,7 +34,6 @@ export default function Home() {
     register,
     handleSubmit,
     formState: { errors },
-    reset,
     watch
   } = useForm<AnalysisFormData>({
     resolver: zodResolver(analysisSchema),
@@ -46,8 +46,10 @@ export default function Home() {
   const searchType = watch('searchType');
   
   const onSubmit = async (data: AnalysisFormData) => {
+    // Check if user is logged in first
     if (!user) {
       try {
+        // Redirect to Google sign-in
         await signInWithGoogle();
         return; // Will redirect to OAuth flow
       } catch (err: unknown) {
@@ -56,9 +58,11 @@ export default function Home() {
         } else {
           setError('Please sign in to analyze startups');
         }
+        return; // Stop execution if login fails
       }
     }
     
+    // Continue with analysis only if user is logged in
     setIsAnalyzing(true);
     setError(null);
     
@@ -96,11 +100,7 @@ export default function Home() {
       setIsAnalyzing(false);
     }
   };
-  
-  const handleReset = () => {
-    setAnalysisResult(null);
-    reset();
-  };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12">
@@ -215,49 +215,91 @@ export default function Home() {
             </div>
             
             <div className="px-4 py-5 sm:p-6 space-y-6">
-              <section>
-                <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Overview</h3>
-                <div className="text-gray-700 whitespace-pre-line">{analysisResult.overview}</div>
-              </section>
-              
-              <section>
-                <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Market Opportunity</h3>
-                <div className="text-gray-700 whitespace-pre-line">{analysisResult.marketOpportunity}</div>
-              </section>
-              
-              <section>
-                <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Competitive Landscape</h3>
-                <div className="text-gray-700 whitespace-pre-line">{analysisResult.competitiveLandscape}</div>
-              </section>
-              
-              <section>
-                <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Business Model</h3>
-                <div className="text-gray-700 whitespace-pre-line">{analysisResult.businessModel}</div>
-              </section>
-              
-              <section>
-                <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Team Assessment</h3>
-                <div className="text-gray-700 whitespace-pre-line">{analysisResult.teamAssessment}</div>
-              </section>
-              
-              <section>
-                <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Risks and Challenges</h3>
-                <div className="text-gray-700 whitespace-pre-line">{analysisResult.risksAndChallenges}</div>
-              </section>
-              
-              <section>
-                <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Investment Potential</h3>
-                <div className="text-gray-700 whitespace-pre-line">{analysisResult.investmentPotential}</div>
-              </section>
-              
-              <div className="mt-6">
-                <button
-                  onClick={handleReset}
-                  className="w-full flex justify-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm text-lg font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 transform hover:-translate-y-0.5"
-                >
-                  Analyze Another Startup or Founder
-                </button>
-              </div>
+              {searchType === 'startup' ? (
+                <>
+                  <section>
+                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Product & Value Proposition</h3>
+                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.productValueProposition}</div>
+                  </section>
+                  
+                  <section>
+                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Market Opportunity</h3>
+                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.marketOpportunity}</div>
+                  </section>
+                  
+                  <section>
+                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Competitive Landscape</h3>
+                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.competitiveLandscape}</div>
+                  </section>
+                  
+                  <section>
+                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Business Model</h3>
+                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.businessModel}</div>
+                  </section>
+                  
+                  <section>
+                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Traction & Growth</h3>
+                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.tractionGrowth}</div>
+                  </section>
+                  
+                  <section>
+                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Founders & Team</h3>
+                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.foundersTeam}</div>
+                  </section>
+                  
+                  <section>
+                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Risks & Challenges</h3>
+                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.risksAndChallenges}</div>
+                  </section>
+                  
+                  <section>
+                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Investment Outlook</h3>
+                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.investmentOutlook}</div>
+                  </section>
+                </>
+              ) : (
+                <>
+                  <section>
+                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Background</h3>
+                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.productValueProposition}</div>
+                  </section>
+                  
+                  <section>
+                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Founder-Market Fit</h3>
+                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.marketOpportunity}</div>
+                  </section>
+                  
+                  <section>
+                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Track Record</h3>
+                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.competitiveLandscape}</div>
+                  </section>
+                  
+                  <section>
+                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Leadership Style</h3>
+                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.businessModel}</div>
+                  </section>
+                  
+                  <section>
+                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Vision</h3>
+                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.tractionGrowth}</div>
+                  </section>
+                  
+                  <section>
+                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Network & Investors</h3>
+                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.foundersTeam}</div>
+                  </section>
+                  
+                  <section>
+                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Risks</h3>
+                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.risksAndChallenges}</div>
+                  </section>
+                  
+                  <section>
+                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Investment Potential</h3>
+                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.investmentOutlook}</div>
+                  </section>
+                </>
+              )}
             </div>
           </div>
         )}
