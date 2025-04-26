@@ -72,54 +72,19 @@ export default function Home() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to generate analysis');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate analysis');
       }
       
       const result = await response.json();
       
       if (result.success) {
         setAnalysisResult(result.analysis);
-        
-        // Save to database in the background
-        try {
-          const saveStartupResponse = await fetch('/api/startups', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              name: data.searchType === 'startup' ? data.searchTerm : result.analysis.startupName || 'Unknown',
-              founderName: data.searchType === 'founder' ? data.searchTerm : result.analysis.founderName || 'Unknown',
-              userId: user.id,
-            }),
-          });
-          
-          if (saveStartupResponse.ok) {
-            const startupData = await saveStartupResponse.json();
-            
-            if (startupData.success && startupData.data?.[0]?.id) {
-              // Save analysis
-              await fetch('/api/analyses', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  startupId: startupData.data[0].id,
-                  analysisData: result.analysis,
-                }),
-              });
-            }
-          }
-        } catch (err) {
-          console.error('Error saving analysis:', err);
-          // Don't show error to user, this is background saving
-        }
       } else {
         throw new Error(result.error || 'Failed to generate analysis');
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred while analyzing the startup');
+      setError(err.message || 'An error occurred while generating the analysis');
     } finally {
       setIsAnalyzing(false);
     }
@@ -235,56 +200,47 @@ export default function Home() {
             </form>
           </div>
         ) : (
-          <div className="bg-white shadow-lg rounded-xl overflow-hidden transition-all duration-300 hover:shadow-xl">
-            <div className="px-4 py-5 sm:px-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 flex items-center">
-                <span className="mr-2">Analysis Results</span>
-                {searchType === 'startup' ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                )}
-              </h3>
+          <div className="mt-8 bg-white shadow-lg rounded-xl overflow-hidden">
+            <div className="px-4 py-5 sm:px-6 bg-gradient-to-r from-purple-50 to-blue-50 border-b border-gray-200">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Analysis Results for {searchType === 'startup' ? 'Startup' : 'Founder'}: {watch('searchTerm')}
+              </h2>
             </div>
             
             <div className="px-4 py-5 sm:p-6 space-y-6">
               <section>
                 <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Overview</h3>
-                <p className="text-gray-700">{analysisResult.overview}</p>
+                <div className="text-gray-700 whitespace-pre-line">{analysisResult.overview}</div>
               </section>
               
               <section>
                 <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Market Opportunity</h3>
-                <p className="text-gray-700">{analysisResult.marketOpportunity}</p>
+                <div className="text-gray-700 whitespace-pre-line">{analysisResult.marketOpportunity}</div>
               </section>
               
               <section>
                 <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Competitive Landscape</h3>
-                <p className="text-gray-700">{analysisResult.competitiveLandscape}</p>
+                <div className="text-gray-700 whitespace-pre-line">{analysisResult.competitiveLandscape}</div>
               </section>
               
               <section>
                 <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Business Model</h3>
-                <p className="text-gray-700">{analysisResult.businessModel}</p>
+                <div className="text-gray-700 whitespace-pre-line">{analysisResult.businessModel}</div>
               </section>
               
               <section>
                 <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Team Assessment</h3>
-                <p className="text-gray-700">{analysisResult.teamAssessment}</p>
+                <div className="text-gray-700 whitespace-pre-line">{analysisResult.teamAssessment}</div>
               </section>
               
               <section>
                 <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Risks and Challenges</h3>
-                <p className="text-gray-700">{analysisResult.risksAndChallenges}</p>
+                <div className="text-gray-700 whitespace-pre-line">{analysisResult.risksAndChallenges}</div>
               </section>
               
               <section>
                 <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Investment Potential</h3>
-                <p className="text-gray-700">{analysisResult.investmentPotential}</p>
+                <div className="text-gray-700 whitespace-pre-line">{analysisResult.investmentPotential}</div>
               </section>
               
               <div className="mt-6">
