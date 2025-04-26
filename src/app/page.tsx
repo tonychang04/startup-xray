@@ -7,8 +7,8 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 const analysisSchema = z.object({
-  startupName: z.string().min(1, 'Startup name is required'),
-  founderName: z.string().optional(),
+  searchType: z.enum(['startup', 'founder']),
+  searchTerm: z.string().min(1, 'Please enter a search term'),
 });
 
 type AnalysisFormData = z.infer<typeof analysisSchema>;
@@ -24,7 +24,7 @@ interface AnalysisResult {
 }
 
 export default function Home() {
-  const { user, signInWithGoogle } = useAuth();
+  const { user, loading, signInWithGoogle } = useAuth();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -33,10 +33,17 @@ export default function Home() {
     register,
     handleSubmit,
     formState: { errors },
-    reset
+    reset,
+    watch
   } = useForm<AnalysisFormData>({
     resolver: zodResolver(analysisSchema),
+    defaultValues: {
+      searchType: 'startup',
+      searchTerm: '',
+    }
   });
+  
+  const searchType = watch('searchType');
   
   const onSubmit = async (data: AnalysisFormData) => {
     if (!user) {
@@ -59,8 +66,8 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          startupName: data.startupName,
-          founderName: data.founderName,
+          startupName: data.searchType === 'startup' ? data.searchTerm : undefined,
+          founderName: data.searchType === 'founder' ? data.searchTerm : undefined,
         }),
       });
       
@@ -81,8 +88,8 @@ export default function Home() {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              name: data.startupName,
-              founderName: data.founderName,
+              name: data.searchType === 'startup' ? data.searchTerm : result.analysis.startupName || 'Unknown',
+              founderName: data.searchType === 'founder' ? data.searchTerm : result.analysis.founderName || 'Unknown',
               userId: user.id,
             }),
           });
@@ -132,58 +139,78 @@ export default function Home() {
             <span className="block text-blue-600">VC-Style Analysis in Seconds</span>
           </h1>
           <p className="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
-            Enter any startup or founder name and get a comprehensive venture capital style analysis instantly.
+            Get comprehensive venture capital analysis for any startup or founder instantly.
           </p>
         </div>
         
         {!analysisResult ? (
-          <div className="bg-white shadow rounded-lg p-6 md:p-8">
+          <div className="bg-white shadow-lg rounded-xl p-6 md:p-8 transition-all duration-300 hover:shadow-xl">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               {error && (
-                <div className="bg-red-50 p-4 rounded-md text-red-700">
+                <div className="bg-red-50 p-4 rounded-md text-red-700 border border-red-200">
                   {error}
                 </div>
               )}
               
-              <div>
-                <label htmlFor="startupName" className="block text-sm font-medium text-gray-700">
-                  Startup Name *
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="startupName"
-                    type="text"
-                    {...register('startupName')}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                    placeholder="e.g., Stripe, Airbnb, etc."
-                  />
-                  {errors.startupName && (
-                    <p className="mt-1 text-sm text-red-600">{errors.startupName.message}</p>
-                  )}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
+                <div className="flex-1 flex items-center justify-center">
+                  <label className={`flex items-center justify-center w-full p-4 rounded-lg cursor-pointer transition-all duration-300 ${searchType === 'startup' ? 'bg-blue-50 border-2 border-blue-500 shadow-md' : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'}`}>
+                    <input
+                      type="radio"
+                      value="startup"
+                      {...register('searchType')}
+                      className="sr-only"
+                    />
+                    <div className="text-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className={`h-8 w-8 mx-auto mb-2 ${searchType === 'startup' ? 'text-blue-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      <span className={`font-medium ${searchType === 'startup' ? 'text-blue-700' : 'text-gray-700'}`}>Search Startup</span>
+                    </div>
+                  </label>
+                </div>
+                
+                <div className="flex-1 flex items-center justify-center">
+                  <label className={`flex items-center justify-center w-full p-4 rounded-lg cursor-pointer transition-all duration-300 ${searchType === 'founder' ? 'bg-blue-50 border-2 border-blue-500 shadow-md' : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'}`}>
+                    <input
+                      type="radio"
+                      value="founder"
+                      {...register('searchType')}
+                      className="sr-only"
+                    />
+                    <div className="text-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className={`h-8 w-8 mx-auto mb-2 ${searchType === 'founder' ? 'text-blue-500' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <span className={`font-medium ${searchType === 'founder' ? 'text-blue-700' : 'text-gray-700'}`}>Search Founder</span>
+                    </div>
+                  </label>
                 </div>
               </div>
               
-              <div>
-                <label htmlFor="founderName" className="block text-sm font-medium text-gray-700">
-                  Founder Name (Optional)
-                </label>
-                <div className="mt-1">
-                  <input
-                    id="founderName"
-                    type="text"
-                    {...register('founderName')}
-                    className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md"
-                    placeholder="e.g., Elon Musk, Sam Altman, etc."
-                  />
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                  </svg>
                 </div>
+                <input
+                  type="text"
+                  {...register('searchTerm')}
+                  className="block w-full pl-10 pr-3 py-4 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-lg"
+                  placeholder={searchType === 'startup' ? 'Enter startup name (e.g., Stripe, Airbnb)' : 'Enter founder name (e.g., Elon Musk, Sam Altman)'}
+                />
               </div>
+              {errors.searchTerm && (
+                <p className="mt-1 text-sm text-red-600">{errors.searchTerm.message}</p>
+              )}
               
               <div>
                 <button
                   type="submit"
                   disabled={isAnalyzing}
-                  className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                    isAnalyzing ? 'opacity-75 cursor-not-allowed' : ''
+                  className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 ${
+                    isAnalyzing ? 'opacity-75 cursor-not-allowed' : 'transform hover:-translate-y-0.5'
                   }`}
                 >
                   {isAnalyzing ? (
@@ -195,68 +222,77 @@ export default function Home() {
                       Analyzing...
                     </>
                   ) : (
-                    'Generate Analysis'
+                    `Generate Analysis`
                   )}
                 </button>
               </div>
               
               {!user && (
-                <div className="text-center text-sm text-gray-500">
+                <div className="text-center text-sm text-gray-500 mt-4">
                   <p>Sign in with Google to save your analyses</p>
                 </div>
               )}
             </form>
           </div>
         ) : (
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <div className="px-4 py-5 sm:px-6 bg-gray-50 border-b border-gray-200">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">
-                Analysis Results
+          <div className="bg-white shadow-lg rounded-xl overflow-hidden transition-all duration-300 hover:shadow-xl">
+            <div className="px-4 py-5 sm:px-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 flex items-center">
+                <span className="mr-2">Analysis Results</span>
+                {searchType === 'startup' ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                )}
               </h3>
             </div>
             
             <div className="px-4 py-5 sm:p-6 space-y-6">
               <section>
-                <h3 className="text-lg font-semibold mb-2">Overview</h3>
+                <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Overview</h3>
                 <p className="text-gray-700">{analysisResult.overview}</p>
               </section>
               
               <section>
-                <h3 className="text-lg font-semibold mb-2">Market Opportunity</h3>
+                <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Market Opportunity</h3>
                 <p className="text-gray-700">{analysisResult.marketOpportunity}</p>
               </section>
               
               <section>
-                <h3 className="text-lg font-semibold mb-2">Competitive Landscape</h3>
+                <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Competitive Landscape</h3>
                 <p className="text-gray-700">{analysisResult.competitiveLandscape}</p>
               </section>
               
               <section>
-                <h3 className="text-lg font-semibold mb-2">Business Model</h3>
+                <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Business Model</h3>
                 <p className="text-gray-700">{analysisResult.businessModel}</p>
               </section>
               
               <section>
-                <h3 className="text-lg font-semibold mb-2">Team Assessment</h3>
+                <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Team Assessment</h3>
                 <p className="text-gray-700">{analysisResult.teamAssessment}</p>
               </section>
               
               <section>
-                <h3 className="text-lg font-semibold mb-2">Risks and Challenges</h3>
+                <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Risks and Challenges</h3>
                 <p className="text-gray-700">{analysisResult.risksAndChallenges}</p>
               </section>
               
               <section>
-                <h3 className="text-lg font-semibold mb-2">Investment Potential</h3>
+                <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Investment Potential</h3>
                 <p className="text-gray-700">{analysisResult.investmentPotential}</p>
               </section>
               
               <div className="mt-6">
                 <button
                   onClick={handleReset}
-                  className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="w-full flex justify-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm text-lg font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 transform hover:-translate-y-0.5"
                 >
-                  Analyze Another Startup
+                  Analyze Another Startup or Founder
                 </button>
               </div>
             </div>
