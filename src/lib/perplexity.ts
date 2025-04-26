@@ -1,7 +1,5 @@
 import axios from 'axios';
 
-const PERPLEXITY_API_URL = 'https://api.perplexity.ai/sonar';
-
 export interface AnalysisRequest {
   startupName: string;
   founderName?: string;

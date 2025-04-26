@@ -21,17 +21,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Check authentication - with better error handling
-    let session;
     try {
-      const cookieStore = await cookies();
-      const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
-      const { data, error } = await supabase.auth.getSession();
+      // Create the Supabase client with the correct cookie handling for Next.js 13+
+      const supabase = createRouteHandlerClient({ 
+        cookies 
+      }, {
+        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+        supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      });
+      
+      // Get the session
+      const { error } = await supabase.auth.getSession();
       
       if (error) {
         console.error('Supabase auth error:', error);
         // Continue without authentication for now
-      } else {
-        session = data.session;
       }
     } catch (authError) {
       console.error('Error checking authentication:', authError);
@@ -110,18 +114,29 @@ export async function POST(request: NextRequest) {
       analysis: sections
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error calling Perplexity API:', error);
     
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: error.message || 'An error occurred while generating the analysis' 
-      },
-      { status: 500 }
-    );
+    if (error instanceof Error) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: error.message || 'An error occurred while generating the analysis' 
+        },
+        { status: 500 }
+      );
+    } else {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'An unknown error occurred while generating the analysis' 
+        },
+        { status: 500 }
+      );
+    }
   }
 }
+
 
 // Helper function to parse the content into sections
 function parseContentIntoSections(content: string) {
@@ -178,7 +193,7 @@ function extractSection(content: string, sectionRegex: RegExp, nextSectionRegex:
   if (!sectionMatch) return '';
   
   // Remove the section header
-  let sectionContent = sectionMatch[0].replace(new RegExp(`^.*?${sectionRegex.source}[:\\s]*`, 'i'), '').trim();
+  const sectionContent = sectionMatch[0].replace(new RegExp(`^.*?${sectionRegex.source}[:\\s]*`, 'i'), '').trim();
   
   return sectionContent;
 }

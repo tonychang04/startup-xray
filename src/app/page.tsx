@@ -24,7 +24,7 @@ interface AnalysisResult {
 }
 
 export default function Home() {
-  const { user, loading, signInWithGoogle } = useAuth();
+  const { user, signInWithGoogle } = useAuth();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -50,9 +50,12 @@ export default function Home() {
       try {
         await signInWithGoogle();
         return; // Will redirect to OAuth flow
-      } catch (err: any) {
-        setError('Please sign in to analyze startups');
-        return;
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message || 'Please sign in to analyze startups');
+        } else {
+          setError('Please sign in to analyze startups');
+        }
       }
     }
     
@@ -83,8 +86,12 @@ export default function Home() {
       } else {
         throw new Error(result.error || 'Failed to generate analysis');
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while generating the analysis');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message || 'An error occurred while generating the analysis');
+      } else {
+        setError('An error occurred while generating the analysis');
+      }
     } finally {
       setIsAnalyzing(false);
     }
