@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources';
@@ -17,15 +16,6 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'Either startup name or founder name is required' },
         { status: 400 }
       );
-    }
-
-    // Check authentication - with better error handling
-    try {
-      // Skip authentication check for now
-      // We'll handle this differently to avoid the cookies() issue
-      console.log('Authentication check skipped to avoid cookies() issue');
-    } catch (authError) {
-      console.error('Error checking authentication:', authError);
     }
 
     // Initialize Perplexity client
@@ -50,7 +40,13 @@ export async function POST(request: NextRequest) {
       7. Risks & Challenges: What factors could prevent ${startupName} from succeeding?
       8. Investment Outlook: Strengths and weaknesses from an investor perspective.
       
-      Keep each bullet point under 15 words. Focus on specific facts, avoid generic statements.`;
+      Format your response as clean markdown with bullet points. For each section:
+      - Use a level 2 heading for the section title (e.g., ## Product & Value Proposition)
+      - Use bullet points (- ) for each point
+      - Bold key terms or phrases
+      - Keep each bullet point under 15 words
+      - Focus on specific facts, avoid generic statements
+      - Do not include any additional text between the heading and bullet points`;
     } else if (founderName && !startupName) {
       prompt = `You are an expert startup analyst.
 
@@ -65,7 +61,13 @@ export async function POST(request: NextRequest) {
       7. Risks: Any controversies, execution risks, or concerns?
       8. Investment Potential: Would an investor bet on ${founderName} based on history and leadership?
       
-      Each bullet point under 15 words. Focus on direct, factual, and insightful points.`;
+      Format your response as clean markdown with bullet points. For each section:
+      - Use a level 2 heading for the section title (e.g., ## Background)
+      - Use bullet points (- ) for each point
+      - Bold key terms or phrases
+      - Keep each bullet point under 15 words
+      - Focus on direct, factual, and insightful points
+      - Do not include any additional text between the heading and bullet points`;
     } else {
       prompt = `You are an expert startup analyst.
 
@@ -80,14 +82,20 @@ export async function POST(request: NextRequest) {
       7. Risks & Challenges: What factors could prevent ${startupName} from succeeding?
       8. Investment Outlook: Strengths and weaknesses from an investor perspective.
       
-      Keep each bullet point under 15 words. Focus on specific facts, avoid generic statements.`;
+      Format your response as clean markdown with bullet points. For each section:
+      - Use a level 2 heading for the section title (e.g., ## Product & Value Proposition)
+      - Use bullet points (- ) for each point
+      - Bold key terms or phrases
+      - Keep each bullet point under 15 words
+      - Focus on specific facts, avoid generic statements
+      - Do not include any additional text between the heading and bullet points`;
     }
 
     // Create the messages array with proper typing
     const messages: ChatCompletionMessageParam[] = [
       {
         role: "system",
-        content: "You are an expert venture capital analyst with deep knowledge of startups, founders, and investment trends. Provide detailed, insightful analysis based on publicly available information."
+        content: "You are an expert venture capital analyst with deep knowledge of startups, founders, and investment trends. Provide detailed, insightful analysis based on publicly available information. Format your response in clean markdown."
       },
       {
         role: "user",
@@ -101,15 +109,16 @@ export async function POST(request: NextRequest) {
       messages: messages,
     });
 
-    // Parse the response to extract the sections
+    // Get the content from the response
     const content = response.choices[0].message.content || '';
     
-    // Parse the content into sections
-    const sections = parseContentIntoSections(content);
+    // Log the raw content for debugging
+    console.log("Raw content from Perplexity:", content);
 
+    // Return the raw markdown content
     return NextResponse.json({
       success: true,
-      analysis: sections
+      analysis: content
     });
 
   } catch (error: unknown) {
@@ -134,94 +143,3 @@ export async function POST(request: NextRequest) {
     }
   }
 }
-
-
-// Helper function to parse the content into sections
-function parseContentIntoSections(content: string) {
-  // Default structure in case parsing fails
-  const defaultSections = {
-    productValueProposition: '',
-    marketOpportunity: '',
-    competitiveLandscape: '',
-    businessModel: '',
-    tractionGrowth: '',
-    foundersTeam: '',
-    risksAndChallenges: '',
-    investmentOutlook: ''
-  };
-
-  try {
-    // Split by common section headers
-    const sections = {
-      productValueProposition: extractSection(content, /(Product & Value Proposition|1\.?\s*Product)/i, /(Market Opportunity|2\.?\s*Market)/i),
-      marketOpportunity: extractSection(content, /(Market Opportunity|2\.?\s*Market)/i, /(Competitive Landscape|3\.?\s*Competitive)/i),
-      competitiveLandscape: extractSection(content, /(Competitive Landscape|3\.?\s*Competitive)/i, /(Business Model|4\.?\s*Business)/i),
-      businessModel: extractSection(content, /(Business Model|4\.?\s*Business)/i, /(Traction & Growth|5\.?\s*Traction)/i),
-      tractionGrowth: extractSection(content, /(Traction & Growth|5\.?\s*Traction)/i, /(Founders & Team|6\.?\s*Founders)/i),
-      foundersTeam: extractSection(content, /(Founders & Team|Background|6\.?\s*Founders)/i, /(Risks & Challenges|7\.?\s*Risks)/i),
-      risksAndChallenges: extractSection(content, /(Risks & Challenges|7\.?\s*Risks)/i, /(Investment Outlook|8\.?\s*Investment)/i),
-      investmentOutlook: extractSection(content, /(Investment Outlook|8\.?\s*Investment)/i, /$/i)
-    };
-
-    // Format each section to ensure bullet points are properly displayed
-    return {
-      productValueProposition: formatBulletPoints(sections.productValueProposition),
-      marketOpportunity: formatBulletPoints(sections.marketOpportunity),
-      competitiveLandscape: formatBulletPoints(sections.competitiveLandscape),
-      businessModel: formatBulletPoints(sections.businessModel),
-      tractionGrowth: formatBulletPoints(sections.tractionGrowth),
-      foundersTeam: formatBulletPoints(sections.foundersTeam),
-      risksAndChallenges: formatBulletPoints(sections.risksAndChallenges),
-      investmentOutlook: formatBulletPoints(sections.investmentOutlook)
-    };
-  } catch (error) {
-    console.error('Error parsing content into sections:', error);
-    // If parsing fails, return the full content in the overview section
-    return {
-      ...defaultSections,
-      productValueProposition: content.trim()
-    };
-  }
-}
-
-// Helper function to extract a section from content
-function extractSection(content: string, sectionRegex: RegExp, nextSectionRegex: RegExp): string {
-  const fullContent = content || '';
-  
-  // Find the start of the section
-  const sectionMatch = fullContent.match(new RegExp(`${sectionRegex.source}[\\s\\S]*?(?=${nextSectionRegex.source}|$)`, 'i'));
-  
-  if (!sectionMatch) return '';
-  
-  // Remove the section header
-  const sectionContent = sectionMatch[0].replace(new RegExp(`^.*?${sectionRegex.source}[:\\s]*`, 'i'), '').trim();
-  
-  return sectionContent;
-}
-
-// Helper function to format bullet points consistently
-function formatBulletPoints(content: string): string {
-  if (!content) return '';
-  
-  // Clean up the content
-  let formattedContent = content.trim();
-  
-  // Replace various bullet point markers with consistent format
-  formattedContent = formattedContent
-    // Replace numbered bullets (1., 2., etc.)
-    .replace(/^\s*(\d+\.)\s*/gm, '• ')
-    // Replace dash bullets
-    .replace(/^\s*[-–—]\s*/gm, '• ')
-    // Replace asterisk bullets
-    .replace(/^\s*\*\s*/gm, '• ')
-    // Replace citation markers like [1], [2]
-    .replace(/\[\d+\]/g, '')
-    // Replace multiple spaces with single space
-    .replace(/\s{2,}/g, ' ')
-    // Ensure each bullet point is on a new line
-    .replace(/•/g, '\n• ')
-    // Remove any leading newlines
-    .replace(/^\n/, '');
-  
-  return formattedContent;
-} 

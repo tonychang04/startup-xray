@@ -13,22 +13,11 @@ const analysisSchema = z.object({
 
 type AnalysisFormData = z.infer<typeof analysisSchema>;
 
-interface AnalysisResult {
-  productValueProposition: string;
-  marketOpportunity: string;
-  competitiveLandscape: string;
-  businessModel: string;
-  tractionGrowth: string;
-  foundersTeam: string;
-  risksAndChallenges: string;
-  investmentOutlook: string;
-}
-
 export default function Home() {
   const { user, signInWithGoogle } = useAuth();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   
   const {
     register,
@@ -44,6 +33,7 @@ export default function Home() {
   });
   
   const searchType = watch('searchType');
+  const searchTerm = watch('searchTerm');
   
   const onSubmit = async (data: AnalysisFormData) => {
     // Check if user is logged in first
@@ -86,21 +76,21 @@ export default function Home() {
       const result = await response.json();
       
       if (result.success) {
+        // Store the HTML string directly
         setAnalysisResult(result.analysis);
       } else {
         throw new Error(result.error || 'Failed to generate analysis');
       }
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message || 'An error occurred while generating the analysis');
-      } else {
-        setError('An error occurred while generating the analysis');
-      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred while generating the analysis');
     } finally {
       setIsAnalyzing(false);
     }
   };
 
+  const resetAnalysis = () => {
+    setAnalysisResult(null);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12">
@@ -111,7 +101,7 @@ export default function Home() {
             <span className="block text-blue-600">VC-Style Analysis in Seconds</span>
           </h1>
           <p className="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
-          Know any startup or founder before you meet them — instant venture insights for founders, VCs, and investors.
+            Know any startup or founder before you meet them — instant venture insights for founders, VCs, and investors.
           </p>
         </div>
         
@@ -208,98 +198,56 @@ export default function Home() {
           </div>
         ) : (
           <div className="mt-8 bg-white shadow-lg rounded-xl overflow-hidden">
-            <div className="px-4 py-5 sm:px-6 bg-gradient-to-r from-purple-50 to-blue-50 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Analysis Results for {searchType === 'startup' ? 'Startup' : 'Founder'}: {watch('searchTerm')}
-              </h2>
+            <div className="px-4 py-6 sm:px-6 bg-gradient-to-r from-blue-50 via-purple-50 to-blue-50 border-b border-gray-200">
+              <div className="flex flex-col items-center sm:flex-row sm:justify-between">
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+                  <span className="mr-2">
+                    {searchType === 'startup' ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    )}
+                  </span>
+                  <span>
+                    {searchType === 'startup' ? 'Startup Analysis:' : 'Founder Analysis:'} 
+                    <span className="text-blue-600 ml-2 font-bold">
+                      {searchTerm}
+                    </span>
+                  </span>
+                </h2>
+                <div className="mt-2 sm:mt-0">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                    <svg className="mr-1.5 h-2 w-2 text-blue-400" fill="currentColor" viewBox="0 0 8 8">
+                      <circle cx="4" cy="4" r="3" />
+                    </svg>
+                    Powered by Perplexity Sonar Pro
+                  </span>
+                </div>
+              </div>
             </div>
             
-            <div className="px-4 py-5 sm:p-6 space-y-6">
-              {searchType === 'startup' ? (
-                <>
-                  <section>
-                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Product & Value Proposition</h3>
-                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.productValueProposition}</div>
-                  </section>
-                  
-                  <section>
-                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Market Opportunity</h3>
-                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.marketOpportunity}</div>
-                  </section>
-                  
-                  <section>
-                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Competitive Landscape</h3>
-                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.competitiveLandscape}</div>
-                  </section>
-                  
-                  <section>
-                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Business Model</h3>
-                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.businessModel}</div>
-                  </section>
-                  
-                  <section>
-                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Traction & Growth</h3>
-                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.tractionGrowth}</div>
-                  </section>
-                  
-                  <section>
-                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Founders & Team</h3>
-                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.foundersTeam}</div>
-                  </section>
-                  
-                  <section>
-                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Risks & Challenges</h3>
-                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.risksAndChallenges}</div>
-                  </section>
-                  
-                  <section>
-                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Investment Outlook</h3>
-                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.investmentOutlook}</div>
-                  </section>
-                </>
-              ) : (
-                <>
-                  <section>
-                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Background</h3>
-                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.productValueProposition}</div>
-                  </section>
-                  
-                  <section>
-                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Founder-Market Fit</h3>
-                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.marketOpportunity}</div>
-                  </section>
-                  
-                  <section>
-                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Track Record</h3>
-                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.competitiveLandscape}</div>
-                  </section>
-                  
-                  <section>
-                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Leadership Style</h3>
-                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.businessModel}</div>
-                  </section>
-                  
-                  <section>
-                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Vision</h3>
-                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.tractionGrowth}</div>
-                  </section>
-                  
-                  <section>
-                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Network & Investors</h3>
-                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.foundersTeam}</div>
-                  </section>
-                  
-                  <section>
-                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Risks</h3>
-                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.risksAndChallenges}</div>
-                  </section>
-                  
-                  <section>
-                    <h3 className="text-lg font-semibold mb-2 text-gray-900 border-b pb-2">Investment Potential</h3>
-                    <div className="text-gray-700 whitespace-pre-line">{analysisResult.investmentOutlook}</div>
-                  </section>
-                </>
-              )}
+            <div className="px-4 py-5 sm:p-6">
+              <div 
+                className="text-gray-700 prose prose-sm max-w-none analysis-content" 
+                dangerouslySetInnerHTML={{ __html: analysisResult }}
+              />
+            </div>
+            
+            <div className="px-4 py-5 sm:p-6 border-t border-gray-200 flex justify-center">
+              <button
+                type="button"
+                onClick={resetAnalysis}
+                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 transition-all duration-200"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                </svg>
+                Generate Another Analysis
+              </button>
             </div>
           </div>
         )}
