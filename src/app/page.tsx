@@ -18,6 +18,7 @@ export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+  const [citations, setCitations] = useState([]);
   
   const {
     register,
@@ -73,13 +74,13 @@ export default function Home() {
         throw new Error(errorData.error || 'Failed to generate analysis');
       }
       
-      const result = await response.json();
+      const responseData = await response.json();
       
-      if (result.success) {
-        // Store the HTML string directly
-        setAnalysisResult(result.analysis);
+      if (responseData.success) {
+        setAnalysisResult(responseData.analysis);
+        setCitations(responseData.citations || []);
       } else {
-        throw new Error(result.error || 'Failed to generate analysis');
+        throw new Error(responseData.error || 'Failed to generate analysis');
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred while generating the analysis');
@@ -231,10 +232,78 @@ export default function Home() {
             </div>
             
             <div className="px-4 py-5 sm:p-6">
-              <div 
-                className="text-gray-700 prose prose-sm max-w-none analysis-content" 
-                dangerouslySetInnerHTML={{ __html: analysisResult }}
-              />
+              <div className="text-gray-700 max-w-none analysis-content">
+                {analysisResult ? (
+                  <div className="space-y-6">
+                    {analysisResult.split('##').filter(section => section.trim()).map((section, index) => {
+                      const [title, ...contentLines] = section.split('\n').filter(line => line.trim());
+                      
+                      return (
+                        <div key={index} className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
+                          <h3 className="text-lg font-medium text-gray-900 mb-3">{title.trim()}</h3>
+                          <div className="markdown-content">
+                            {contentLines.map((line, lineIdx) => {
+                              if (!line.trim()) return null;
+                              
+                              // Process the line to handle bold text and citations
+                              let processedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                              
+                              // Handle citations like [1][2][3]
+                              processedLine = processedLine.replace(/\[(\d+)\]/g, (match, num) => {
+                                const citationIndex = parseInt(num) - 1;
+                                if (citations && citations[citationIndex]) {
+                                  return `<a href="${citations[citationIndex]}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">[${num}]</a>`;
+                                }
+                                return match;
+                              });
+                              
+                              // Handle bullet points (both - and • characters)
+                              if (line.trim().startsWith('-') || line.trim().startsWith('•')) {
+                                return (
+                                  <div key={lineIdx} className="flex items-center mb-2">
+                                    <span className="mr-2 flex-shrink-0">•</span>
+                                    <span dangerouslySetInnerHTML={{ 
+                                      __html: processedLine.substring(line.trim().startsWith('-') ? 1 : 1) 
+                                    }} />
+                                  </div>
+                                );
+                              }
+                              
+                              // Handle regular text
+                              return (
+                                <p key={lineIdx} className="mb-2" dangerouslySetInnerHTML={{ __html: processedLine }} />
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    
+                    {/* Citations section */}
+                    {citations && citations.length > 0 && (
+                      <div className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
+                        <h3 className="text-lg font-medium text-gray-900 mb-3">Sources</h3>
+                        <ol className="list-decimal pl-5">
+                          {citations.map((citation, index) => (
+                            <li key={index} className="mb-2">
+                              <a 
+                                href={citation} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline break-all"
+                              >
+                                {citation}
+                              </a>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500">No analysis data available</div>
+                )}
+              </div>
             </div>
             
             <div className="px-4 py-5 sm:p-6 border-t border-gray-200 flex justify-center">
