@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     if (startupName && !founderName) {
       prompt = `You are an expert startup analyst.
 
-      Analyze the startup "${startupName}" in concise bullet points:
+      Analyze the startup "${startupName}" using sources in concise bullet points:
       
       1. Product & Value Proposition: What does the company do? What specific problem(s) do they solve?
       

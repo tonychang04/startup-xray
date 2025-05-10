@@ -381,11 +381,11 @@ export default function Home() {
     
     // Market Size Chart (if data available)
     if (data.marketSize) {
-      const marketSizeCtx = document.getElementById('marketSizeChart');
+      const marketSizeCtx = document.getElementById('marketSizeChart') as HTMLCanvasElement;
       if (marketSizeCtx) {
         // Convert market size to a number for visualization
         let marketSizeValue = 0;
-        const marketSizeStr = data.marketSize.toLowerCase();
+        const marketSizeStr = data.marketSize?.toLowerCase() ?? '';
         
         if (marketSizeStr.includes('billion') || marketSizeStr.includes('bn')) {
           marketSizeValue = parseFloat(marketSizeStr.replace(/[^\d.]/g, '')) * 1000;
@@ -470,7 +470,7 @@ export default function Home() {
     
     // Competitors Chart (if data available)
     if (data.competitors && data.competitors.length > 0) {
-      const competitorsCtx = document.getElementById('competitorsChart');
+      const competitorsCtx = document.getElementById('competitorsChart') as HTMLCanvasElement;
       if (competitorsCtx) {
         // Generate random market share data for visualization purposes
         const competitorShares = data.competitors.map(() => Math.floor(Math.random() * 30) + 5);
