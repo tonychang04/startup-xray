@@ -686,7 +686,14 @@ export default function Home() {
               <div className="text-gray-700 max-w-none analysis-content">
                 {analysisResult ? (
                   <div className="space-y-6">
-                    {/* Analysis content */}
+                    {/* Visualizations - Moved to the top */}
+                    {searchType === 'startup' && (
+                      <div className="mb-8">
+                        {renderStartupVisualizations(analysisResult, searchTerm)}
+                      </div>
+                    )}
+                    
+                    {/* Analysis content - Moved below visualizations */}
                     {analysisResult.split('##').filter(section => section.trim()).map((section, index) => {
                       const [title, ...contentLines] = section.split('\n').filter(line => line.trim());
                       
@@ -721,7 +728,6 @@ export default function Home() {
                                 );
                               }
                               
-                              // Handle regular text
                               return (
                                 <p key={lineIdx} className="mb-2" dangerouslySetInnerHTML={{ __html: processedLine }} />
                               );
@@ -730,14 +736,6 @@ export default function Home() {
                         </div>
                       );
                     })}
-                    
-                    {/* Visualizations */}
-                    {searchType === 'startup' && (
-                      <div className="mt-8">
-                        <h3 className="text-xl font-semibold text-gray-900 mb-4">Key Metrics Visualization</h3>
-                        {renderStartupVisualizations(analysisResult, searchTerm)}
-                      </div>
-                    )}
                     
                     {/* Citations section */}
                     {citations && citations.length > 0 && (

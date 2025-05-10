@@ -35,6 +35,15 @@ export default function Header() {
                 Startup X-Ray
               </Link>
             </div>
+            <div className="hidden sm:ml-8 sm:flex sm:items-center space-x-6">
+              <Link href="/" className="text-gray-800 hover:text-blue-600 px-3 py-2 text-base font-medium tracking-wide transition-colors duration-200">
+                Home
+              </Link>
+              <Link href="/saved-analysis" className="text-gray-800 hover:text-blue-600 px-3 py-2 text-base font-medium tracking-wide transition-colors duration-200">
+                Saved Analysis
+              </Link>
+           
+            </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
             {loading ? (
@@ -71,13 +80,6 @@ export default function Header() {
                     <div className="px-4 py-2 text-sm text-gray-700 border-b">
                       {user.email}
                     </div>
-                    <Link
-                      href="/dashboard"
-                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      Dashboard
-                    </Link>
                     <button
                       onClick={() => {
                         setIsMenuOpen(false);
@@ -168,6 +170,13 @@ export default function Header() {
                 onClick={() => setIsMenuOpen(false)}
               >
                 Dashboard
+              </Link>
+              <Link
+                href="/saved-analysis"
+                className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Saved Analysis
               </Link>
               <Link
                 href="/analyze/new"
