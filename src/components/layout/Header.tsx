@@ -39,10 +39,9 @@ export default function Header() {
               <Link href="/" className="text-gray-800 hover:text-blue-600 px-3 py-2 text-base font-medium tracking-wide transition-colors duration-200">
                 Home
               </Link>
-              <Link href="/saved-analysis" className="text-gray-800 hover:text-blue-600 px-3 py-2 text-base font-medium tracking-wide transition-colors duration-200">
-                Saved Analysis
+              <Link href="/compare" className="text-gray-800 hover:text-blue-600 px-3 py-2 text-base font-medium tracking-wide transition-colors duration-200">
+                Compare
               </Link>
-           
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
@@ -162,31 +161,13 @@ export default function Header() {
           >
             Home
           </Link>
-          {user && (
-            <>
-              <Link
-                href="/dashboard"
-                className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/saved-analysis"
-                className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Saved Analysis
-              </Link>
-              <Link
-                href="/analyze/new"
-                className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                New Analysis
-              </Link>
-            </>
-          )}
+          <Link
+            href="/compare"
+            className="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800"
+            onClick={() => setIsMenuOpen(false)}
+          >
+            Compare
+          </Link>
         </div>
         <div className="pt-4 pb-3 border-t border-gray-200">
           {user ? (
