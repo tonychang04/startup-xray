@@ -37,7 +37,7 @@ export default function Header() {
             </div>
             <div className="hidden sm:ml-8 sm:flex sm:items-center space-x-6">
               <Link href="/" className="text-gray-800 hover:text-blue-600 px-3 py-2 text-base font-medium tracking-wide transition-colors duration-200">
-                Home
+                Analyze
               </Link>
               <Link href="/compare" className="text-gray-800 hover:text-blue-600 px-3 py-2 text-base font-medium tracking-wide transition-colors duration-200">
                 Compare

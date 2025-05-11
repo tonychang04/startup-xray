@@ -149,7 +149,6 @@ export default function Compare() {
   
   const extractMetricsFromText = (text: string, businessNames: string[]) => {
     console.log('Extracting metrics for businesses:', businessNames);
-    console.log('Full text to extract from:', text);
     
     // Initialize metrics object
     const metrics = {
@@ -175,178 +174,184 @@ export default function Compare() {
       }
     };
     
-    // Extract founding year
-    const foundingYearPattern1 = new RegExp(`${businessNames[0]}\\s+was\\s+founded\\s+in\\s+(\\d{4})`, 'i');
-    const foundingYearPattern2 = new RegExp(`${businessNames[1]}\\s+was\\s+founded\\s+in\\s+(\\d{4})`, 'i');
-    
-    // Also try alternative patterns that might appear in the text
-    const altFoundingPattern1 = new RegExp(`${businessNames[0]}\\s+(?:was\\s+founded|founded)\\s+(?:in\\s+)?(\\d{4})`, 'i');
-    const altFoundingPattern2 = new RegExp(`${businessNames[1]}\\s+(?:was\\s+founded|founded)\\s+(?:in\\s+)?(\\d{4})`, 'i');
-    
-    // Extract funding
-    const fundingPattern1 = new RegExp(`${businessNames[0]}\\s+has\\s+raised\\s+\\$(\\d+(?:\\.\\d+)?)\\s+(million|billion)`, 'i');
-    const fundingPattern2 = new RegExp(`${businessNames[1]}\\s+has\\s+raised\\s+\\$(\\d+(?:\\.\\d+)?)\\s+(million|billion)`, 'i');
-    
-    // Extract valuation
-    const valuationPattern1 = new RegExp(`${businessNames[0]}'s\\s+latest\\s+valuation\\s+is\\s+\\$(\\d+(?:\\.\\d+)?)\\s+(million|billion)`, 'i');
-    const valuationPattern2 = new RegExp(`${businessNames[1]}'s\\s+latest\\s+valuation\\s+is\\s+\\$(\\d+(?:\\.\\d+)?)\\s+(million|billion)`, 'i');
-    
-    // Extract employees
-    const employeesPattern1 = new RegExp(`${businessNames[0]}\\s+has\\s+(\\d+(?:,\\d+)*)\\s+employees`, 'i');
-    const employeesPattern2 = new RegExp(`${businessNames[1]}\\s+has\\s+(\\d+(?:,\\d+)*)\\s+employees`, 'i');
-    
-    // Extract revenue
-    const revenuePattern1 = new RegExp(`${businessNames[0]}'s\\s+annual\\s+revenue\\s+is\\s+approximately\\s+\\$(\\d+(?:\\.\\d+)?)\\s+(million|billion)`, 'i');
-    const revenuePattern2 = new RegExp(`${businessNames[1]}'s\\s+annual\\s+revenue\\s+is\\s+approximately\\s+\\$(\\d+(?:\\.\\d+)?)\\s+(million|billion)`, 'i');
-    
-    // Extract growth rate
-    const growthPattern1 = new RegExp(`${businessNames[0]}'s\\s+growth\\s+rate\\s+is\\s+(\\d+(?:\\.\\d+)?)%`, 'i');
-    const growthPattern2 = new RegExp(`${businessNames[1]}'s\\s+growth\\s+rate\\s+is\\s+(\\d+(?:\\.\\d+)?)%`, 'i');
-    
-    // Extract market share
-    const marketSharePattern1 = new RegExp(`${businessNames[0]}'s\\s+market\\s+share\\s+is\\s+(\\d+(?:\\.\\d+)?)%`, 'i');
-    const marketSharePattern2 = new RegExp(`${businessNames[1]}'s\\s+market\\s+share\\s+is\\s+(\\d+(?:\\.\\d+)?)%`, 'i');
-    
-    // Extract market size
-    const marketSizePattern = new RegExp(`The\\s+total\\s+addressable\\s+market\\s+is\\s+\\$(\\d+(?:\\.\\d+)?)\\s+(billion|trillion)`, 'i');
-    
-    // Try to match all patterns
-    
-    // Founding year
-    let match = text.match(foundingYearPattern1) || text.match(altFoundingPattern1);
-    if (match) {
-      metrics[businessNames[0]].foundingYear = parseInt(match[1]);
-      console.log(`Found founding year for ${businessNames[0]}:`, metrics[businessNames[0]].foundingYear);
+    // Try to extract JSON data first
+    try {
+      // Look for JSON block with or without the ```json markers
+      let jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+      
+      // If not found with ```json, try just ```
+      if (!jsonMatch) {
+        jsonMatch = text.match(/```\s*([\s\S]*?)\s*```/);
+      }
+      
+      // If still not found, try looking for a JSON object directly
+      if (!jsonMatch) {
+        jsonMatch = text.match(/\{\s*"[^"]+"\s*:\s*\{[\s\S]*?\}\s*,\s*"[^"]+"\s*:\s*\{[\s\S]*?\}\s*\}/);
+      }
+      
+      if (jsonMatch) {
+        const jsonStr = jsonMatch[1] || jsonMatch[0];
+        console.log('Found JSON data:', jsonStr);
+        
+        // Clean the JSON string - remove any non-JSON characters
+        const cleanJsonStr = jsonStr.replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
+        
+        const jsonData = JSON.parse(cleanJsonStr);
+        
+        // Process data for both businesses
+        businessNames.forEach(name => {
+          if (jsonData[name.toLowerCase()]) {
+            // Try lowercase name
+            processBusinessData(jsonData[name.toLowerCase()], metrics[name]);
+          } else if (jsonData[name]) {
+            // Try exact name
+            processBusinessData(jsonData[name], metrics[name]);
+          }
+        });
+        
+        console.log('Extracted metrics from JSON:', metrics);
+        return metrics;
+      }
+    } catch (error) {
+      console.error('Error parsing JSON metrics:', error);
+      // Fall back to regex extraction if JSON parsing fails
     }
     
-    match = text.match(foundingYearPattern2) || text.match(altFoundingPattern2);
-    if (match) {
-      metrics[businessNames[1]].foundingYear = parseInt(match[1]);
-      console.log(`Found founding year for ${businessNames[1]}:`, metrics[businessNames[1]].foundingYear);
-    }
-    
-    // Funding
-    match = text.match(fundingPattern1);
-    if (match) {
-      const amount = parseFloat(match[1]);
-      const unit = match[2].toLowerCase();
-      metrics[businessNames[0]].funding = unit === 'billion' ? amount * 1000 : amount;
-      console.log(`Found funding for ${businessNames[0]}:`, metrics[businessNames[0]].funding);
-    }
-    
-    match = text.match(fundingPattern2);
-    if (match) {
-      const amount = parseFloat(match[1]);
-      const unit = match[2].toLowerCase();
-      metrics[businessNames[1]].funding = unit === 'billion' ? amount * 1000 : amount;
-      console.log(`Found funding for ${businessNames[1]}:`, metrics[businessNames[1]].funding);
-    }
-    
-    // Valuation
-    match = text.match(valuationPattern1);
-    if (match) {
-      const amount = parseFloat(match[1]);
-      const unit = match[2].toLowerCase();
-      metrics[businessNames[0]].valuation = unit === 'billion' ? amount * 1000 : amount;
-      console.log(`Found valuation for ${businessNames[0]}:`, metrics[businessNames[0]].valuation);
-    }
-    
-    match = text.match(valuationPattern2);
-    if (match) {
-      const amount = parseFloat(match[1]);
-      const unit = match[2].toLowerCase();
-      metrics[businessNames[1]].valuation = unit === 'billion' ? amount * 1000 : amount;
-      console.log(`Found valuation for ${businessNames[1]}:`, metrics[businessNames[1]].valuation);
-    }
-    
-    // Employees
-    match = text.match(employeesPattern1);
-    if (match) {
-      metrics[businessNames[0]].employees = parseInt(match[1].replace(/,/g, ''));
-      console.log(`Found employees for ${businessNames[0]}:`, metrics[businessNames[0]].employees);
-    }
-    
-    match = text.match(employeesPattern2);
-    if (match) {
-      metrics[businessNames[1]].employees = parseInt(match[1].replace(/,/g, ''));
-      console.log(`Found employees for ${businessNames[1]}:`, metrics[businessNames[1]].employees);
-    }
-    
-    // Revenue
-    match = text.match(revenuePattern1);
-    if (match) {
-      const amount = parseFloat(match[1]);
-      const unit = match[2].toLowerCase();
-      metrics[businessNames[0]].revenue = unit === 'billion' ? amount * 1000 : amount;
-      console.log(`Found revenue for ${businessNames[0]}:`, metrics[businessNames[0]].revenue);
-    }
-    
-    match = text.match(revenuePattern2);
-    if (match) {
-      const amount = parseFloat(match[1]);
-      const unit = match[2].toLowerCase();
-      metrics[businessNames[1]].revenue = unit === 'billion' ? amount * 1000 : amount;
-      console.log(`Found revenue for ${businessNames[1]}:`, metrics[businessNames[1]].revenue);
-    }
-    
-    // Growth rate
-    match = text.match(growthPattern1);
-    if (match) {
-      metrics[businessNames[0]].growthRate = parseFloat(match[1]);
-      console.log(`Found growth rate for ${businessNames[0]}:`, metrics[businessNames[0]].growthRate);
-    }
-    
-    match = text.match(growthPattern2);
-    if (match) {
-      metrics[businessNames[1]].growthRate = parseFloat(match[1]);
-      console.log(`Found growth rate for ${businessNames[1]}:`, metrics[businessNames[1]].growthRate);
-    }
-    
-    // Market share
-    match = text.match(marketSharePattern1);
-    if (match) {
-      metrics[businessNames[0]].marketShare = parseFloat(match[1]);
-      console.log(`Found market share for ${businessNames[0]}:`, metrics[businessNames[0]].marketShare);
-    }
-    
-    match = text.match(marketSharePattern2);
-    if (match) {
-      metrics[businessNames[1]].marketShare = parseFloat(match[1]);
-      console.log(`Found market share for ${businessNames[1]}:`, metrics[businessNames[1]].marketShare);
-    }
-    
-    // Market size
-    match = text.match(marketSizePattern);
-    if (match) {
-      const amount = parseFloat(match[1]);
-      const unit = match[2].toLowerCase();
-      const marketSize = unit === 'trillion' ? amount * 1000 : amount;
-      metrics[businessNames[0]].marketSize = marketSize;
-      metrics[businessNames[1]].marketSize = marketSize;
-      console.log(`Found market size: $${marketSize}B`);
-    }
-    
-    // Also try to extract from bullet point format
-    const bulletFoundingPattern1 = new RegExp(`\\*\\*${businessNames[0]}\\s+(?:was\\s+founded|founded)\\s+(?:in\\s+)?(\\d{4})\\*\\*`, 'i');
-    const bulletFoundingPattern2 = new RegExp(`\\*\\*${businessNames[1]}\\s+(?:was\\s+founded|founded)\\s+(?:in\\s+)?(\\d{4})\\*\\*`, 'i');
-    
-    const bulletFundingPattern1 = new RegExp(`\\*\\*${businessNames[0]}\\s+has\\s+raised\\s+\\$(\\d+(?:\\.\\d+)?)\\s+(million|billion)\\*\\*`, 'i');
-    const bulletFundingPattern2 = new RegExp(`\\*\\*${businessNames[1]}\\s+has\\s+raised\\s+\\$(\\d+(?:\\.\\d+)?)\\s+(million|billion)\\*\\*`, 'i');
-    
-    // Try to match bullet patterns if regular patterns didn't work
-    if (metrics[businessNames[0]].foundingYear === null) {
-      match = text.match(bulletFoundingPattern1);
+    // Process each line of the text
+    const lines = text.split('\n');
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (!trimmedLine) continue;
+      
+      console.log('Processing line:', trimmedLine);
+      
+      // Founding year
+      let match = trimmedLine.match(foundingYearPattern1);
       if (match) {
         metrics[businessNames[0]].foundingYear = parseInt(match[1]);
-        console.log(`Found founding year for ${businessNames[0]} (bullet):`, metrics[businessNames[0]].foundingYear);
+        console.log(`Found founding year for ${businessNames[0]}:`, metrics[businessNames[0]].foundingYear);
+        continue;
       }
-    }
-    
-    if (metrics[businessNames[1]].foundingYear === null) {
-      match = text.match(bulletFoundingPattern2);
+      
+      match = trimmedLine.match(foundingYearPattern2);
       if (match) {
         metrics[businessNames[1]].foundingYear = parseInt(match[1]);
-        console.log(`Found founding year for ${businessNames[1]} (bullet):`, metrics[businessNames[1]].foundingYear);
+        console.log(`Found founding year for ${businessNames[1]}:`, metrics[businessNames[1]].foundingYear);
+        continue;
+      }
+      
+      // Funding
+      match = trimmedLine.match(fundingPattern1);
+      if (match) {
+        const amount = parseFloat(match[1]);
+        const unit = match[2].toLowerCase();
+        metrics[businessNames[0]].funding = unit === 'billion' ? amount * 1000 : amount;
+        console.log(`Found funding for ${businessNames[0]}:`, metrics[businessNames[0]].funding);
+        continue;
+      }
+      
+      match = trimmedLine.match(fundingPattern2);
+      if (match) {
+        const amount = parseFloat(match[1]);
+        const unit = match[2].toLowerCase();
+        metrics[businessNames[1]].funding = unit === 'billion' ? amount * 1000 : amount;
+        console.log(`Found funding for ${businessNames[1]}:`, metrics[businessNames[1]].funding);
+        continue;
+      }
+      
+      // Valuation
+      match = trimmedLine.match(valuationPattern1);
+      if (match) {
+        const amount = parseFloat(match[1]);
+        const unit = match[2].toLowerCase();
+        metrics[businessNames[0]].valuation = unit === 'billion' ? amount * 1000 : amount;
+        console.log(`Found valuation for ${businessNames[0]}:`, metrics[businessNames[0]].valuation);
+        continue;
+      }
+      
+      match = trimmedLine.match(valuationPattern2);
+      if (match) {
+        const amount = parseFloat(match[1]);
+        const unit = match[2].toLowerCase();
+        metrics[businessNames[1]].valuation = unit === 'billion' ? amount * 1000 : amount;
+        console.log(`Found valuation for ${businessNames[1]}:`, metrics[businessNames[1]].valuation);
+        continue;
+      }
+      
+      // Employees
+      match = trimmedLine.match(employeesPattern1);
+      if (match) {
+        metrics[businessNames[0]].employees = parseInt(match[1].replace(/,/g, ''));
+        console.log(`Found employees for ${businessNames[0]}:`, metrics[businessNames[0]].employees);
+        continue;
+      }
+      
+      match = trimmedLine.match(employeesPattern2);
+      if (match) {
+        metrics[businessNames[1]].employees = parseInt(match[1].replace(/,/g, ''));
+        console.log(`Found employees for ${businessNames[1]}:`, metrics[businessNames[1]].employees);
+        continue;
+      }
+      
+      // Revenue
+      match = trimmedLine.match(revenuePattern1);
+      if (match) {
+        const amount = parseFloat(match[1]);
+        const unit = match[2].toLowerCase();
+        metrics[businessNames[0]].revenue = unit === 'billion' ? amount * 1000 : amount;
+        console.log(`Found revenue for ${businessNames[0]}:`, metrics[businessNames[0]].revenue);
+        continue;
+      }
+      
+      match = trimmedLine.match(revenuePattern2);
+      if (match) {
+        const amount = parseFloat(match[1]);
+        const unit = match[2].toLowerCase();
+        metrics[businessNames[1]].revenue = unit === 'billion' ? amount * 1000 : amount;
+        console.log(`Found revenue for ${businessNames[1]}:`, metrics[businessNames[1]].revenue);
+        continue;
+      }
+      
+      // Growth rate
+      match = trimmedLine.match(growthPattern1);
+      if (match) {
+        metrics[businessNames[0]].growthRate = parseFloat(match[1]);
+        console.log(`Found growth rate for ${businessNames[0]}:`, metrics[businessNames[0]].growthRate);
+        continue;
+      }
+      
+      match = trimmedLine.match(growthPattern2);
+      if (match) {
+        metrics[businessNames[1]].growthRate = parseFloat(match[1]);
+        console.log(`Found growth rate for ${businessNames[1]}:`, metrics[businessNames[1]].growthRate);
+        continue;
+      }
+      
+      // Market share
+      match = trimmedLine.match(marketSharePattern1);
+      if (match) {
+        metrics[businessNames[0]].marketShare = parseFloat(match[1]);
+        console.log(`Found market share for ${businessNames[0]}:`, metrics[businessNames[0]].marketShare);
+        continue;
+      }
+      
+      match = trimmedLine.match(marketSharePattern2);
+      if (match) {
+        metrics[businessNames[1]].marketShare = parseFloat(match[1]);
+        console.log(`Found market share for ${businessNames[1]}:`, metrics[businessNames[1]].marketShare);
+        continue;
+      }
+      
+      // Market size
+      match = trimmedLine.match(marketSizePattern);
+      if (match) {
+        const amount = parseFloat(match[1]);
+        const unit = match[2].toLowerCase();
+        const marketSize = unit === 'trillion' ? amount * 1000 : amount;
+        metrics[businessNames[0]].marketSize = marketSize;
+        metrics[businessNames[1]].marketSize = marketSize;
+        console.log(`Found market size: $${marketSize}B`);
+        continue;
       }
     }
     
@@ -361,7 +366,38 @@ export default function Compare() {
     console.log('Has enough data for visualization:', hasEnoughData);
     console.log('Final extracted metrics:', metrics);
     
-    return hasEnoughData ? metrics : null;
+    // Always return metrics for visualization, even if incomplete
+    return metrics;
+  };
+  
+  // Helper function to process business data
+  const processBusinessData = (data, metricsObj) => {
+    if (!data) return;
+    
+    metricsObj.foundingYear = data.foundingYear || null;
+    
+    metricsObj.funding = data.funding ? 
+      (data.fundingUnit === 'billion' ? data.funding * 1000 : data.funding) : null;
+    
+    metricsObj.valuation = data.valuation ? 
+      (data.valuationUnit === 'trillion' ? data.valuation * 1000000 : 
+       data.valuationUnit === 'billion' ? data.valuation * 1000 : data.valuation) : null;
+    
+    metricsObj.employees = data.employees ? 
+      (typeof data.employees === 'string' ? 
+       parseInt(data.employees.replace(/_/g, '')) : data.employees) : null;
+    
+    metricsObj.revenue = data.revenue ? 
+      (data.revenueUnit === 'billion' ? data.revenue * 1000 : data.revenue) : null;
+    
+    metricsObj.growthRate = data.growthRate ? 
+      (data.growthRate <= 1 ? data.growthRate * 100 : data.growthRate) : null;
+    
+    metricsObj.marketShare = data.marketShare ? 
+      (data.marketShare <= 1 ? data.marketShare * 100 : data.marketShare) : null;
+    
+    metricsObj.marketSize = data.marketSize ? 
+      (data.marketSizeUnit === 'trillion' ? data.marketSize * 1000 : data.marketSize) : null;
   };
   
   const createCharts = (metrics, businessNames, chartRefs, chartInstances) => {
@@ -684,6 +720,7 @@ export default function Compare() {
               }
             }
           });
+          
         } else {
           // Display "No data available" message
           ctx.font = '16px Arial';
@@ -785,25 +822,7 @@ export default function Compare() {
                 </div>
               </div>
             </div>
-            
-            {/* Debug section - Add this */}
-            <div className="px-4 py-5 sm:p-6 border-t border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Debug Information</h3>
-              <div className="mt-2 p-4 bg-gray-100 rounded overflow-auto max-h-96">
-                <h4 className="font-bold">Raw Response:</h4>
-                <pre className="text-xs whitespace-pre-wrap">{comparisonResult}</pre>
-                
-                <h4 className="font-bold mt-4">Extracted Metrics:</h4>
-                <pre className="text-xs whitespace-pre-wrap">
-                  {JSON.stringify(metrics, null, 2) || "No metrics extracted"}
-                </pre>
-                
-                <h4 className="font-bold mt-4">Business Names:</h4>
-                <pre className="text-xs whitespace-pre-wrap">
-                  {JSON.stringify(businessNames, null, 2)}
-                </pre>
-              </div>
-            </div>
+          
             
             {/* Visualization Section - Only show if metrics exist */}
             {metrics ? (
@@ -901,6 +920,26 @@ export default function Compare() {
                       </tr>
                     </tbody>
                   </table>
+                </div>
+
+                {/* Key differences section - Add this after the metrics table */}
+                <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Key Differences</h3>
+                  <div className="prose prose-blue max-w-none">
+                    {comparisonResult && (
+                      <div>
+                        {(() => {
+                          // Extract the text after the JSON block
+                          const jsonEndIndex = comparisonResult.lastIndexOf('```');
+                          if (jsonEndIndex !== -1) {
+                            const keyDifferences = comparisonResult.substring(jsonEndIndex + 3).trim();
+                            return <p>{keyDifferences}</p>;
+                          }
+                          return <p>No key differences information available.</p>;
+                        })()}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ) : (
