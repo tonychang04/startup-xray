@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import '../globals.css';
 
 import { BubbleDataPoint, Chart, ChartTypeRegistry, Point, registerables } from 'chart.js';
 Chart.register(...registerables);
@@ -36,6 +37,7 @@ export default function Compare() {
     radar: null
   });
   const chartInstances = useRef<{[key: string]: Chart | null}>({});
+  const [isLoaded, setIsLoaded] = useState(false);
   
   const {
     register,
@@ -86,6 +88,11 @@ export default function Compare() {
       });
     };
   }, [metrics, businessNames]);
+  
+  // Use effect to mark when the page is loaded
+  useEffect(() => {
+    setIsLoaded(true);
+  }, []);
   
   const onSubmit = async (data: CompareFormData) => {
     // Check if user is logged in first
@@ -614,7 +621,7 @@ export default function Compare() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12">
+    <div className={`min-h-screen bg-gradient-to-b from-blue-50 to-white py-12 ${isLoaded ? 'font-loaded' : 'opacity-0'}`}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl md:text-6xl">
