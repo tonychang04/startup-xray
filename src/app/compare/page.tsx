@@ -1,17 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+
+import { Chart, registerables } from 'chart.js';
+Chart.register(...registerables);
 
 const compareSchema = z.object({
   businesses: z.array(
     z.object({
       name: z.string().min(1, 'Please enter a business name')
     })
-  ).min(2, 'Please add at least two businesses to compare').max(4, 'Maximum 4 businesses can be compared')
+  ).length(2, 'Please provide exactly two businesses to compare')
 });
 
 type CompareFormData = z.infer<typeof compareSchema>;
@@ -21,6 +24,16 @@ export default function Compare() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [comparisonResult, setComparisonResult] = useState<string | null>(null);
+  const [businessNames, setBusinessNames] = useState<string[]>([]);
+  const [metrics, setMetrics] = useState<any | null>(null);
+  const chartRefs = useRef<{[key: string]: HTMLCanvasElement | null}>({
+    funding: null,
+    valuation: null,
+    growth: null,
+    market: null,
+    radar: null
+  });
+  const chartInstances = useRef<{[key: string]: Chart | null}>({});
   
   const {
     register,
@@ -37,10 +50,40 @@ export default function Compare() {
     }
   });
   
-  const { fields, append, remove } = useFieldArray({
+  const { fields } = useFieldArray({
     control,
     name: "businesses"
   });
+  
+  // Extract metrics from the comparison result
+  useEffect(() => {
+    if (comparisonResult && businessNames.length === 2) {
+      console.log('Raw comparison result:', comparisonResult);
+      const extractedMetrics = extractMetricsFromText(comparisonResult, businessNames);
+      console.log('Extracted metrics:', extractedMetrics);
+      setMetrics(extractedMetrics);
+    }
+  }, [comparisonResult, businessNames]);
+  
+  // Create charts when metrics are available
+  useEffect(() => {
+    if (!metrics) return;
+    
+    // Clean up any existing charts
+    Object.values(chartInstances.current).forEach(chart => {
+      if (chart) chart.destroy();
+    });
+    
+    // Create new charts
+    createCharts(metrics, businessNames, chartRefs, chartInstances);
+    
+    return () => {
+      // Clean up on unmount
+      Object.values(chartInstances.current).forEach(chart => {
+        if (chart) chart.destroy();
+      });
+    };
+  }, [metrics, businessNames]);
   
   const onSubmit = async (data: CompareFormData) => {
     // Check if user is logged in first
@@ -61,6 +104,7 @@ export default function Compare() {
     setIsAnalyzing(true);
     setError(null);
     setComparisonResult(null);
+    setBusinessNames(data.businesses.map(b => b.name));
     
     try {
       // Get business names as a comma-separated string
@@ -73,7 +117,7 @@ export default function Compare() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          businesses: businessNames,
+          businessesString: businessNames,
         }),
       });
       
@@ -97,20 +141,558 @@ export default function Compare() {
     }
   };
   
-  const addBusiness = () => {
-    if (fields.length < 4) {
-      append({ name: '' });
-    }
-  };
-  
-  const removeBusiness = (index: number) => {
-    if (fields.length > 2) {
-      remove(index);
-    }
-  };
-  
   const resetComparison = () => {
     setComparisonResult(null);
+    setMetrics(null);
+    setBusinessNames([]);
+  };
+  
+  const extractMetricsFromText = (text: string, businessNames: string[]) => {
+    console.log('Extracting metrics for businesses:', businessNames);
+    console.log('Full text to extract from:', text);
+    
+    // Initialize metrics object
+    const metrics = {
+      [businessNames[0]]: {
+        foundingYear: null,
+        funding: null,
+        valuation: null,
+        employees: null,
+        revenue: null,
+        growthRate: null,
+        marketShare: null,
+        marketSize: null
+      },
+      [businessNames[1]]: {
+        foundingYear: null,
+        funding: null,
+        valuation: null,
+        employees: null,
+        revenue: null,
+        growthRate: null,
+        marketShare: null,
+        marketSize: null
+      }
+    };
+    
+    // Extract founding year
+    const foundingYearPattern1 = new RegExp(`${businessNames[0]}\\s+was\\s+founded\\s+in\\s+(\\d{4})`, 'i');
+    const foundingYearPattern2 = new RegExp(`${businessNames[1]}\\s+was\\s+founded\\s+in\\s+(\\d{4})`, 'i');
+    
+    // Also try alternative patterns that might appear in the text
+    const altFoundingPattern1 = new RegExp(`${businessNames[0]}\\s+(?:was\\s+founded|founded)\\s+(?:in\\s+)?(\\d{4})`, 'i');
+    const altFoundingPattern2 = new RegExp(`${businessNames[1]}\\s+(?:was\\s+founded|founded)\\s+(?:in\\s+)?(\\d{4})`, 'i');
+    
+    // Extract funding
+    const fundingPattern1 = new RegExp(`${businessNames[0]}\\s+has\\s+raised\\s+\\$(\\d+(?:\\.\\d+)?)\\s+(million|billion)`, 'i');
+    const fundingPattern2 = new RegExp(`${businessNames[1]}\\s+has\\s+raised\\s+\\$(\\d+(?:\\.\\d+)?)\\s+(million|billion)`, 'i');
+    
+    // Extract valuation
+    const valuationPattern1 = new RegExp(`${businessNames[0]}'s\\s+latest\\s+valuation\\s+is\\s+\\$(\\d+(?:\\.\\d+)?)\\s+(million|billion)`, 'i');
+    const valuationPattern2 = new RegExp(`${businessNames[1]}'s\\s+latest\\s+valuation\\s+is\\s+\\$(\\d+(?:\\.\\d+)?)\\s+(million|billion)`, 'i');
+    
+    // Extract employees
+    const employeesPattern1 = new RegExp(`${businessNames[0]}\\s+has\\s+(\\d+(?:,\\d+)*)\\s+employees`, 'i');
+    const employeesPattern2 = new RegExp(`${businessNames[1]}\\s+has\\s+(\\d+(?:,\\d+)*)\\s+employees`, 'i');
+    
+    // Extract revenue
+    const revenuePattern1 = new RegExp(`${businessNames[0]}'s\\s+annual\\s+revenue\\s+is\\s+approximately\\s+\\$(\\d+(?:\\.\\d+)?)\\s+(million|billion)`, 'i');
+    const revenuePattern2 = new RegExp(`${businessNames[1]}'s\\s+annual\\s+revenue\\s+is\\s+approximately\\s+\\$(\\d+(?:\\.\\d+)?)\\s+(million|billion)`, 'i');
+    
+    // Extract growth rate
+    const growthPattern1 = new RegExp(`${businessNames[0]}'s\\s+growth\\s+rate\\s+is\\s+(\\d+(?:\\.\\d+)?)%`, 'i');
+    const growthPattern2 = new RegExp(`${businessNames[1]}'s\\s+growth\\s+rate\\s+is\\s+(\\d+(?:\\.\\d+)?)%`, 'i');
+    
+    // Extract market share
+    const marketSharePattern1 = new RegExp(`${businessNames[0]}'s\\s+market\\s+share\\s+is\\s+(\\d+(?:\\.\\d+)?)%`, 'i');
+    const marketSharePattern2 = new RegExp(`${businessNames[1]}'s\\s+market\\s+share\\s+is\\s+(\\d+(?:\\.\\d+)?)%`, 'i');
+    
+    // Extract market size
+    const marketSizePattern = new RegExp(`The\\s+total\\s+addressable\\s+market\\s+is\\s+\\$(\\d+(?:\\.\\d+)?)\\s+(billion|trillion)`, 'i');
+    
+    // Try to match all patterns
+    
+    // Founding year
+    let match = text.match(foundingYearPattern1) || text.match(altFoundingPattern1);
+    if (match) {
+      metrics[businessNames[0]].foundingYear = parseInt(match[1]);
+      console.log(`Found founding year for ${businessNames[0]}:`, metrics[businessNames[0]].foundingYear);
+    }
+    
+    match = text.match(foundingYearPattern2) || text.match(altFoundingPattern2);
+    if (match) {
+      metrics[businessNames[1]].foundingYear = parseInt(match[1]);
+      console.log(`Found founding year for ${businessNames[1]}:`, metrics[businessNames[1]].foundingYear);
+    }
+    
+    // Funding
+    match = text.match(fundingPattern1);
+    if (match) {
+      const amount = parseFloat(match[1]);
+      const unit = match[2].toLowerCase();
+      metrics[businessNames[0]].funding = unit === 'billion' ? amount * 1000 : amount;
+      console.log(`Found funding for ${businessNames[0]}:`, metrics[businessNames[0]].funding);
+    }
+    
+    match = text.match(fundingPattern2);
+    if (match) {
+      const amount = parseFloat(match[1]);
+      const unit = match[2].toLowerCase();
+      metrics[businessNames[1]].funding = unit === 'billion' ? amount * 1000 : amount;
+      console.log(`Found funding for ${businessNames[1]}:`, metrics[businessNames[1]].funding);
+    }
+    
+    // Valuation
+    match = text.match(valuationPattern1);
+    if (match) {
+      const amount = parseFloat(match[1]);
+      const unit = match[2].toLowerCase();
+      metrics[businessNames[0]].valuation = unit === 'billion' ? amount * 1000 : amount;
+      console.log(`Found valuation for ${businessNames[0]}:`, metrics[businessNames[0]].valuation);
+    }
+    
+    match = text.match(valuationPattern2);
+    if (match) {
+      const amount = parseFloat(match[1]);
+      const unit = match[2].toLowerCase();
+      metrics[businessNames[1]].valuation = unit === 'billion' ? amount * 1000 : amount;
+      console.log(`Found valuation for ${businessNames[1]}:`, metrics[businessNames[1]].valuation);
+    }
+    
+    // Employees
+    match = text.match(employeesPattern1);
+    if (match) {
+      metrics[businessNames[0]].employees = parseInt(match[1].replace(/,/g, ''));
+      console.log(`Found employees for ${businessNames[0]}:`, metrics[businessNames[0]].employees);
+    }
+    
+    match = text.match(employeesPattern2);
+    if (match) {
+      metrics[businessNames[1]].employees = parseInt(match[1].replace(/,/g, ''));
+      console.log(`Found employees for ${businessNames[1]}:`, metrics[businessNames[1]].employees);
+    }
+    
+    // Revenue
+    match = text.match(revenuePattern1);
+    if (match) {
+      const amount = parseFloat(match[1]);
+      const unit = match[2].toLowerCase();
+      metrics[businessNames[0]].revenue = unit === 'billion' ? amount * 1000 : amount;
+      console.log(`Found revenue for ${businessNames[0]}:`, metrics[businessNames[0]].revenue);
+    }
+    
+    match = text.match(revenuePattern2);
+    if (match) {
+      const amount = parseFloat(match[1]);
+      const unit = match[2].toLowerCase();
+      metrics[businessNames[1]].revenue = unit === 'billion' ? amount * 1000 : amount;
+      console.log(`Found revenue for ${businessNames[1]}:`, metrics[businessNames[1]].revenue);
+    }
+    
+    // Growth rate
+    match = text.match(growthPattern1);
+    if (match) {
+      metrics[businessNames[0]].growthRate = parseFloat(match[1]);
+      console.log(`Found growth rate for ${businessNames[0]}:`, metrics[businessNames[0]].growthRate);
+    }
+    
+    match = text.match(growthPattern2);
+    if (match) {
+      metrics[businessNames[1]].growthRate = parseFloat(match[1]);
+      console.log(`Found growth rate for ${businessNames[1]}:`, metrics[businessNames[1]].growthRate);
+    }
+    
+    // Market share
+    match = text.match(marketSharePattern1);
+    if (match) {
+      metrics[businessNames[0]].marketShare = parseFloat(match[1]);
+      console.log(`Found market share for ${businessNames[0]}:`, metrics[businessNames[0]].marketShare);
+    }
+    
+    match = text.match(marketSharePattern2);
+    if (match) {
+      metrics[businessNames[1]].marketShare = parseFloat(match[1]);
+      console.log(`Found market share for ${businessNames[1]}:`, metrics[businessNames[1]].marketShare);
+    }
+    
+    // Market size
+    match = text.match(marketSizePattern);
+    if (match) {
+      const amount = parseFloat(match[1]);
+      const unit = match[2].toLowerCase();
+      const marketSize = unit === 'trillion' ? amount * 1000 : amount;
+      metrics[businessNames[0]].marketSize = marketSize;
+      metrics[businessNames[1]].marketSize = marketSize;
+      console.log(`Found market size: $${marketSize}B`);
+    }
+    
+    // Also try to extract from bullet point format
+    const bulletFoundingPattern1 = new RegExp(`\\*\\*${businessNames[0]}\\s+(?:was\\s+founded|founded)\\s+(?:in\\s+)?(\\d{4})\\*\\*`, 'i');
+    const bulletFoundingPattern2 = new RegExp(`\\*\\*${businessNames[1]}\\s+(?:was\\s+founded|founded)\\s+(?:in\\s+)?(\\d{4})\\*\\*`, 'i');
+    
+    const bulletFundingPattern1 = new RegExp(`\\*\\*${businessNames[0]}\\s+has\\s+raised\\s+\\$(\\d+(?:\\.\\d+)?)\\s+(million|billion)\\*\\*`, 'i');
+    const bulletFundingPattern2 = new RegExp(`\\*\\*${businessNames[1]}\\s+has\\s+raised\\s+\\$(\\d+(?:\\.\\d+)?)\\s+(million|billion)\\*\\*`, 'i');
+    
+    // Try to match bullet patterns if regular patterns didn't work
+    if (metrics[businessNames[0]].foundingYear === null) {
+      match = text.match(bulletFoundingPattern1);
+      if (match) {
+        metrics[businessNames[0]].foundingYear = parseInt(match[1]);
+        console.log(`Found founding year for ${businessNames[0]} (bullet):`, metrics[businessNames[0]].foundingYear);
+      }
+    }
+    
+    if (metrics[businessNames[1]].foundingYear === null) {
+      match = text.match(bulletFoundingPattern2);
+      if (match) {
+        metrics[businessNames[1]].foundingYear = parseInt(match[1]);
+        console.log(`Found founding year for ${businessNames[1]} (bullet):`, metrics[businessNames[1]].foundingYear);
+      }
+    }
+    
+    // Check if we have enough data for visualization
+    const hasEnoughData = businessNames.some(name => {
+      const businessMetrics = metrics[name];
+      const nonNullValues = Object.values(businessMetrics).filter(value => value !== null);
+      console.log(`${name} has ${nonNullValues.length} non-null metrics out of 8`);
+      return nonNullValues.length >= 3; // At least 3 metrics available
+    });
+    
+    console.log('Has enough data for visualization:', hasEnoughData);
+    console.log('Final extracted metrics:', metrics);
+    
+    return hasEnoughData ? metrics : null;
+  };
+  
+  const createCharts = (metrics, businessNames, chartRefs, chartInstances) => {
+    console.log('Creating charts with metrics:', metrics);
+    
+    if (!metrics || !businessNames || businessNames.length !== 2) return;
+    
+    const colors = [
+      ['rgba(59, 130, 246, 0.5)', 'rgb(59, 130, 246)'], // blue
+      ['rgba(239, 68, 68, 0.5)', 'rgb(239, 68, 68)']    // red
+    ];
+    
+    // Helper function to filter out null values
+    const filterNulls = (data, labels) => {
+      const validIndices = [];
+      const filteredData = [];
+      const filteredLabels = [];
+      
+      data.forEach((value, index) => {
+        if (value !== null) {
+          validIndices.push(index);
+          filteredData.push(value);
+          filteredLabels.push(labels[index]);
+        }
+      });
+      
+      return { data: filteredData, labels: filteredLabels, validIndices };
+    };
+    
+    // Create funding chart
+    if (chartRefs.current.funding) {
+      const ctx = chartRefs.current.funding.getContext('2d');
+      if (ctx) {
+        const fundingData = businessNames.map(name => metrics[name].funding);
+        const { data, labels, validIndices } = filterNulls(fundingData, businessNames);
+        
+        if (data.length > 0) {
+          chartInstances.current.funding = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: 'Total Funding ($M)',
+                data: data,
+                backgroundColor: validIndices.map(i => colors[i][0]),
+                borderColor: validIndices.map(i => colors[i][1]),
+                borderWidth: 1
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                title: {
+                  display: true,
+                  text: 'Total Funding Comparison'
+                },
+                legend: {
+                  display: false
+                }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  title: {
+                    display: true,
+                    text: 'Millions ($)'
+                  }
+                }
+              }
+            }
+          });
+        } else {
+          // Display "No data available" message
+          ctx.font = '16px Arial';
+          ctx.fillStyle = '#666';
+          ctx.textAlign = 'center';
+          ctx.fillText('No funding data available', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        }
+      }
+    }
+    
+    // Create valuation chart
+    if (chartRefs.current.valuation) {
+      const ctx = chartRefs.current.valuation.getContext('2d');
+      if (ctx) {
+        const valuationData = businessNames.map(name => metrics[name].valuation);
+        const { data, labels, validIndices } = filterNulls(valuationData, businessNames);
+        
+        if (data.length > 0) {
+          chartInstances.current.valuation = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: 'Valuation ($M)',
+                data: data,
+                backgroundColor: validIndices.map(i => colors[i][0]),
+                borderColor: validIndices.map(i => colors[i][1]),
+                borderWidth: 1
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                title: {
+                  display: true,
+                  text: 'Company Valuation'
+                },
+                legend: {
+                  display: false
+                }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  title: {
+                    display: true,
+                    text: 'Millions ($)'
+                  }
+                }
+              }
+            }
+          });
+        } else {
+          // Display "No data available" message
+          ctx.font = '16px Arial';
+          ctx.fillStyle = '#666';
+          ctx.textAlign = 'center';
+          ctx.fillText('No valuation data available', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        }
+      }
+    }
+    
+    // Create growth rate chart
+    if (chartRefs.current.growth) {
+      const ctx = chartRefs.current.growth.getContext('2d');
+      if (ctx) {
+        const growthData = businessNames.map(name => metrics[name].growthRate);
+        const { data, labels, validIndices } = filterNulls(growthData, businessNames);
+        
+        if (data.length > 0) {
+          chartInstances.current.growth = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: 'Growth Rate (%)',
+                data: data,
+                backgroundColor: validIndices.map(i => colors[i][0]),
+                borderColor: validIndices.map(i => colors[i][1]),
+                borderWidth: 1
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                title: {
+                  display: true,
+                  text: 'Annual Growth Rate'
+                },
+                legend: {
+                  display: false
+                }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  title: {
+                    display: true,
+                    text: 'Percentage (%)'
+                  }
+                }
+              }
+            }
+          });
+        } else {
+          // Display "No data available" message
+          ctx.font = '16px Arial';
+          ctx.fillStyle = '#666';
+          ctx.textAlign = 'center';
+          ctx.fillText('No growth rate data available', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        }
+      }
+    }
+    
+    // Create radar chart for overall comparison
+    if (chartRefs.current.radar) {
+      const ctx = chartRefs.current.radar.getContext('2d');
+      if (ctx) {
+        // Check if we have enough data for the radar chart
+        const hasEnoughData = businessNames.some(name => {
+          const businessMetrics = metrics[name];
+          return Object.values(businessMetrics).filter(value => value !== null).length >= 3;
+        });
+        
+        if (hasEnoughData) {
+          // Normalize values for radar chart (0-100 scale)
+          const normalizeValue = (value, metric) => {
+            if (value === null) return 0;
+            
+            const maxValues = {
+              funding: 500,
+              valuation: 2000,
+              employees: 1000,
+              revenue: 500,
+              growthRate: 100,
+              marketShare: 100,
+              marketSize: 100
+            };
+            
+            return Math.min(100, (value / maxValues[metric]) * 100);
+          };
+          
+          chartInstances.current.radar = new Chart(ctx, {
+            type: 'radar',
+            data: {
+              labels: ['Funding', 'Valuation', 'Team Size', 'Revenue', 'Growth', 'Market Share'],
+              datasets: businessNames.map((name, i) => ({
+                label: name,
+                data: [
+                  metrics[name].funding !== null ? normalizeValue(metrics[name].funding, 'funding') : 0,
+                  metrics[name].valuation !== null ? normalizeValue(metrics[name].valuation, 'valuation') : 0,
+                  metrics[name].employees !== null ? normalizeValue(metrics[name].employees, 'employees') : 0,
+                  metrics[name].revenue !== null ? normalizeValue(metrics[name].revenue, 'revenue') : 0,
+                  metrics[name].growthRate !== null ? normalizeValue(metrics[name].growthRate, 'growthRate') : 0,
+                  metrics[name].marketShare !== null ? normalizeValue(metrics[name].marketShare, 'marketShare') : 0
+                ],
+                backgroundColor: colors[i][0],
+                borderColor: colors[i][1],
+                borderWidth: 2,
+                pointBackgroundColor: colors[i][1],
+                pointRadius: 4
+              }))
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                title: {
+                  display: true,
+                  text: 'Business Comparison Overview'
+                },
+                tooltip: {
+                  callbacks: {
+                    label: function(context) {
+                      const label = context.dataset.label || '';
+                      const value = context.raw || 0;
+                      const metricName = ['funding', 'valuation', 'employees', 'revenue', 'growthRate', 'marketShare'][context.dataIndex];
+                      const actualValue = metrics[label][metricName];
+                      
+                      if (actualValue === null) {
+                        return `${label}: No data`;
+                      }
+                      
+                      let suffix = '';
+                      if (metricName === 'funding' || metricName === 'valuation' || metricName === 'revenue') {
+                        suffix = 'M';
+                      } else if (metricName === 'growthRate' || metricName === 'marketShare') {
+                        suffix = '%';
+                      } else if (metricName === 'marketSize') {
+                        suffix = 'B';
+                      }
+                      
+                      return `${label}: ${actualValue}${suffix}`;
+                    }
+                  }
+                }
+              },
+              scales: {
+                r: {
+                  angleLines: {
+                    display: true
+                  },
+                  suggestedMin: 0,
+                  suggestedMax: 100
+                }
+              }
+            }
+          });
+        } else {
+          // Display "No data available" message
+          ctx.font = '16px Arial';
+          ctx.fillStyle = '#666';
+          ctx.textAlign = 'center';
+          ctx.fillText('Insufficient data for comparison', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        }
+      }
+    }
+    
+    // Create market size chart
+    if (chartRefs.current.market) {
+      const ctx = chartRefs.current.market.getContext('2d');
+      if (ctx) {
+        const hasMarketData = businessNames.every(name => 
+          metrics[name].marketShare !== null && metrics[name].marketSize !== null
+        );
+        
+        if (hasMarketData) {
+          chartInstances.current.market = new Chart(ctx, {
+            type: 'pie',
+            data: {
+              labels: [...businessNames, 'Rest of Market'],
+              datasets: [{
+                data: [
+                  metrics[businessNames[0]].marketSize * (metrics[businessNames[0]].marketShare / 100),
+                  metrics[businessNames[1]].marketSize * (metrics[businessNames[1]].marketShare / 100),
+                  metrics[businessNames[0]].marketSize * (1 - (metrics[businessNames[0]].marketShare + metrics[businessNames[1]].marketShare) / 100)
+                ],
+                backgroundColor: [colors[0][0], colors[1][0], 'rgba(203, 213, 225, 0.5)'],
+                borderColor: [colors[0][1], colors[1][1], 'rgb(148, 163, 184)'],
+                borderWidth: 1
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                title: {
+                  display: true,
+                  text: 'Market Share Distribution'
+                }
+              }
+            }
+          });
+        } else {
+          // Display "No data available" message
+          ctx.font = '16px Arial';
+          ctx.fillStyle = '#666';
+          ctx.textAlign = 'center';
+          ctx.fillText('No market share data available', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        }
+      }
+    }
   };
 
   return (
@@ -119,7 +701,7 @@ export default function Compare() {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl md:text-6xl">
             <span className="block">Startup X-Ray</span>
-            <span className="block text-blue-600">Compare Businesses in Seconds</span>
+            <span className="block text-blue-600">Compare Businesses</span>
           </h1>
           <p className="mt-3 max-w-md mx-auto text-base text-gray-500 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
             Compare multiple businesses side-by-side with detailed VC-style analysis.
@@ -139,19 +721,8 @@ export default function Compare() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {fields.map((field, index) => (
                     <div key={field.id} className="flex flex-col p-5 border border-gray-200 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow duration-200">
-                      <div className="flex justify-between items-center mb-3">
+                      <div className="mb-3">
                         <label className="block text-lg font-semibold text-gray-800">Business {index + 1}</label>
-                        {fields.length > 2 && (
-                          <button
-                            type="button"
-                            onClick={() => removeBusiness(index)}
-                            className="inline-flex items-center p-1.5 border border-transparent rounded-full text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                          </button>
-                        )}
                       </div>
                       <input
                         type="text"
@@ -166,21 +737,6 @@ export default function Compare() {
                   ))}
                 </div>
               </div>
-              
-              {fields.length < 4 && (
-                <div className="flex justify-center">
-                  <button
-                    type="button"
-                    onClick={addBusiness}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                    </svg>
-                    Add Business
-                  </button>
-                </div>
-              )}
               
               {errors.businesses && (
                 <p className="text-sm text-red-600">{errors.businesses.message}</p>
@@ -208,19 +764,159 @@ export default function Compare() {
             </form>
           </div>
         ) : (
-          <div className="bg-white shadow-lg rounded-xl p-6 md:p-8 transition-all duration-300 hover:shadow-xl">
-            <div className="mb-6 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-gray-900">Comparison Results</h2>
-              <button
-                onClick={resetComparison}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                New Comparison
-              </button>
+          <div className="mt-8 bg-white shadow-lg rounded-xl overflow-hidden">
+            <div className="px-4 py-6 sm:px-6 bg-gradient-to-r from-blue-50 via-purple-50 to-blue-50 border-b border-gray-200">
+              <div className="flex flex-col items-center sm:flex-row sm:justify-between">
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+                  <span className="mr-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </span>
+                  <span>Business Comparison: {businessNames.join(' vs. ')}</span>
+                </h2>
+                <div className="mt-2 sm:mt-0">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                    <svg className="mr-1.5 h-2 w-2 text-blue-400" fill="currentColor" viewBox="0 0 8 8">
+                      <circle cx="4" cy="4" r="3" />
+                    </svg>
+                    Powered by Perplexity Sonar Pro
+                  </span>
+                </div>
+              </div>
             </div>
             
-            <div className="prose prose-blue max-w-none">
-              <div dangerouslySetInnerHTML={{ __html: comparisonResult.replace(/\n/g, '<br />') }} />
+            {/* Debug section - Add this */}
+            <div className="px-4 py-5 sm:p-6 border-t border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">Debug Information</h3>
+              <div className="mt-2 p-4 bg-gray-100 rounded overflow-auto max-h-96">
+                <h4 className="font-bold">Raw Response:</h4>
+                <pre className="text-xs whitespace-pre-wrap">{comparisonResult}</pre>
+                
+                <h4 className="font-bold mt-4">Extracted Metrics:</h4>
+                <pre className="text-xs whitespace-pre-wrap">
+                  {JSON.stringify(metrics, null, 2) || "No metrics extracted"}
+                </pre>
+                
+                <h4 className="font-bold mt-4">Business Names:</h4>
+                <pre className="text-xs whitespace-pre-wrap">
+                  {JSON.stringify(businessNames, null, 2)}
+                </pre>
+              </div>
+            </div>
+            
+            {/* Visualization Section - Only show if metrics exist */}
+            {metrics ? (
+              <div className="px-4 py-5 sm:p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div className="h-64 border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
+                    <canvas ref={el => chartRefs.current.radar = el} />
+                  </div>
+                  <div className="h-64 border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
+                    <canvas ref={el => chartRefs.current.market = el} />
+                  </div>
+                  <div className="h-64 border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
+                    <canvas ref={el => chartRefs.current.funding = el} />
+                  </div>
+                  <div className="h-64 border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
+                    <canvas ref={el => chartRefs.current.growth = el} />
+                  </div>
+                </div>
+                
+                {/* Side-by-side metrics table */}
+                <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+                  <table className="min-w-full divide-y divide-gray-300">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metric</th>
+                        {businessNames.map(name => (
+                          <th key={name} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{name}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      <tr>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Founding Year</td>
+                        {businessNames.map(name => (
+                          <td key={name} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {metrics && metrics[name] && metrics[name].foundingYear !== null ? metrics[name].foundingYear : 'N/A'}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Total Funding</td>
+                        {businessNames.map(name => (
+                          <td key={name} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {metrics && metrics[name] && metrics[name].funding !== null ? `$${metrics[name].funding}M` : 'N/A'}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Valuation</td>
+                        {businessNames.map(name => (
+                          <td key={name} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {metrics && metrics[name] && metrics[name].valuation !== null ? `$${metrics[name].valuation}M` : 'N/A'}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Employees</td>
+                        {businessNames.map(name => (
+                          <td key={name} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {metrics && metrics[name] && metrics[name].employees !== null ? metrics[name].employees : 'N/A'}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Revenue (Est.)</td>
+                        {businessNames.map(name => (
+                          <td key={name} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {metrics && metrics[name] && metrics[name].revenue !== null ? `$${metrics[name].revenue}M` : 'N/A'}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Growth Rate</td>
+                        {businessNames.map(name => (
+                          <td key={name} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {metrics && metrics[name] && metrics[name].growthRate !== null ? `${metrics[name].growthRate}%` : 'N/A'}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Market Share</td>
+                        {businessNames.map(name => (
+                          <td key={name} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {metrics && metrics[name] && metrics[name].marketShare !== null ? `${metrics[name].marketShare}%` : 'N/A'}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Market Size (TAM)</td>
+                        {businessNames.map(name => (
+                          <td key={name} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {metrics && metrics[name] && metrics[name].marketSize !== null ? `$${metrics[name].marketSize}B` : 'N/A'}
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="px-4 py-5 sm:p-6 text-center">
+                <p className="text-gray-500">Processing data for visualization...</p>
+              </div>
+            )}
+            
+            <div className="px-4 py-5 sm:p-6 border-t border-gray-200 flex justify-center">
+              <button
+                type="button"
+                onClick={resetComparison}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Generate Another Comparison
+              </button>
             </div>
           </div>
         )}

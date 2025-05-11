@@ -642,12 +642,6 @@ export default function Home() {
                   )}
                 </button>
               </div>
-              
-              {!user && (
-                <div className="text-center text-sm text-gray-500 mt-4">
-                  <p>Sign in with Google to save your analyses</p>
-                </div>
-              )}
             </form>
           </div>
         ) : (
