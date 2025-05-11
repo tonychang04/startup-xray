@@ -1,11 +1,11 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, RefObject } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { Chart, registerables } from 'chart.js';
+import { BubbleDataPoint, Chart, ChartTypeRegistry, Point, registerables } from 'chart.js';
 Chart.register(...registerables);
 
 const compareSchema = z.object({
@@ -17,6 +17,9 @@ const compareSchema = z.object({
 });
 
 type CompareFormData = z.infer<typeof compareSchema>;
+
+// Define valid metric keys
+type MetricKey = 'funding' | 'valuation' | 'employees' | 'revenue' | 'growthRate' | 'marketShare' | 'marketSize';
 
 export default function Compare() {
   const { user, signInWithGoogle } = useAuth();
@@ -74,7 +77,7 @@ export default function Compare() {
     });
     
     // Create new charts
-    createCharts(metrics, businessNames, chartRefs, chartInstances);
+    createCharts(metrics as any, businessNames, chartRefs, chartInstances);
     
     return () => {
       // Clean up on unmount
@@ -233,7 +236,7 @@ export default function Compare() {
   };
   
   // Helper function to process business data
-  const processBusinessData = (data, metricsObj) => {
+  const processBusinessData = (data: any, metricsObj: any) => {
     if (!data) return;
     
     metricsObj.foundingYear = data.foundingYear || null;
@@ -262,7 +265,23 @@ export default function Compare() {
       (data.marketSizeUnit === 'trillion' ? data.marketSize * 1000 : data.marketSize) : null;
   };
   
-  const createCharts = (metrics, businessNames, chartRefs, chartInstances) => {
+  const createCharts = (
+    metrics: { 
+      [key: string]: {
+        valuation: any;
+        growthRate: any;
+        employees: null;
+        revenue: null;
+        marketSize: null;
+        funding: any; 
+        marketShare: any;
+        foundingYear: null;
+      }
+    }, 
+    businessNames: string[], 
+    chartRefs: RefObject<{ [key: string]: HTMLCanvasElement | null; }>, 
+    chartInstances: RefObject<{ [key: string]: Chart<keyof ChartTypeRegistry, (number | [number, number] | Point | BubbleDataPoint | null)[], unknown> | null; }>
+  ) => {
     console.log('Creating charts with metrics:', metrics);
     
     if (!metrics || !businessNames || businessNames.length !== 2) return;
@@ -273,10 +292,10 @@ export default function Compare() {
     ];
     
     // Helper function to filter out null values
-    const filterNulls = (data, labels) => {
-      const validIndices = [];
-      const filteredData = [];
-      const filteredLabels = [];
+    const filterNulls = (data: any[], labels: any[]) => {
+      const validIndices: number[] = [];
+      const filteredData: any[] = [];
+      const filteredLabels: any[] = [];
       
       data.forEach((value, index) => {
         if (value !== null) {
@@ -457,17 +476,17 @@ export default function Compare() {
         
         if (hasEnoughData) {
           // Normalize values for radar chart (0-100 scale)
-          const normalizeValue = (value, metric) => {
+          const normalizeValue = (value: number | null, metric: MetricKey) => {
             if (value === null) return 0;
             
-            const maxValues = {
+            const maxValues: Record<MetricKey, number> = {
               funding: 500,
               valuation: 2000,
               employees: 1000,
               revenue: 500,
               growthRate: 100,
               marketShare: 100,
-              marketSize: 100
+              marketSize: 1000
             };
             
             return Math.min(100, (value / maxValues[metric]) * 100);
@@ -504,10 +523,10 @@ export default function Compare() {
                 tooltip: {
                   callbacks: {
                     label: function(context) {
-                      const label = context.dataset.label || '';
+                      const label = context.label || '';
                       const value = context.raw || 0;
                       const metricName = ['funding', 'valuation', 'employees', 'revenue', 'growthRate', 'marketShare'][context.dataIndex];
-                      const actualValue = metrics[label][metricName];
+                      const actualValue = (metrics as any)[label][metricName];
                       
                       if (actualValue === null) {
                         return `${label}: No data`;
@@ -563,9 +582,9 @@ export default function Compare() {
               labels: [...businessNames, 'Rest of Market'],
               datasets: [{
                 data: [
-                  metrics[businessNames[0]].marketSize * (metrics[businessNames[0]].marketShare / 100),
-                  metrics[businessNames[1]].marketSize * (metrics[businessNames[1]].marketShare / 100),
-                  metrics[businessNames[0]].marketSize * (1 - (metrics[businessNames[0]].marketShare + metrics[businessNames[1]].marketShare) / 100)
+                  (metrics[businessNames[0]]?.marketSize || 0) * ((metrics[businessNames[0]]?.marketShare || 0) / 100),
+                  (metrics[businessNames[1]]?.marketSize || 0) * ((metrics[businessNames[1]]?.marketShare || 0) / 100),
+                  (metrics[businessNames[0]]?.marketSize || 0) * (1 - ((metrics[businessNames[0]]?.marketShare || 0) + (metrics[businessNames[1]]?.marketShare || 0)) / 100)
                 ],
                 backgroundColor: [colors[0][0], colors[1][0], 'rgba(203, 213, 225, 0.5)'],
                 borderColor: [colors[0][1], colors[1][1], 'rgb(148, 163, 184)'],
@@ -691,16 +710,16 @@ export default function Compare() {
               <div className="px-4 py-5 sm:p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <div className="h-64 border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
-                    <canvas ref={el => chartRefs.current.radar = el} />
+                    <canvas ref={(el) => { chartRefs.current.radar = el; }} />
                   </div>
                   <div className="h-64 border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
-                    <canvas ref={el => chartRefs.current.market = el} />
+                    <canvas ref={(el) => { chartRefs.current.market = el; }} />
                   </div>
                   <div className="h-64 border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
-                    <canvas ref={el => chartRefs.current.funding = el} />
+                    <canvas ref={(el) => { chartRefs.current.funding = el; }} />
                   </div>
                   <div className="h-64 border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
-                    <canvas ref={el => chartRefs.current.growth = el} />
+                    <canvas ref={(el) => { chartRefs.current.growth = el; }} />
                   </div>
                 </div>
                 
@@ -720,7 +739,7 @@ export default function Compare() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Founding Year</td>
                         {businessNames.map(name => (
                           <td key={name} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {metrics && metrics[name] && metrics[name].foundingYear !== null ? metrics[name].foundingYear : 'N/A'}
+                            {metrics && (metrics as any)[name] && (metrics as any)[name].foundingYear !== null ? (metrics as any)[name].foundingYear : 'N/A'}
                           </td>
                         ))}
                       </tr>
@@ -728,7 +747,7 @@ export default function Compare() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Total Funding</td>
                         {businessNames.map(name => (
                           <td key={name} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {metrics && metrics[name] && metrics[name].funding !== null ? `$${metrics[name].funding}M` : 'N/A'}
+                            {metrics && (metrics as any)[name] && (metrics as any)[name].funding !== null ? `$${(metrics as any)[name].funding}M` : 'N/A'}
                           </td>
                         ))}
                       </tr>
@@ -736,7 +755,7 @@ export default function Compare() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Valuation</td>
                         {businessNames.map(name => (
                           <td key={name} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {metrics && metrics[name] && metrics[name].valuation !== null ? `$${metrics[name].valuation}M` : 'N/A'}
+                            {metrics && (metrics as any)[name] && (metrics as any)[name].valuation !== null ? `$${(metrics as any)[name].valuation}M` : 'N/A'}
                           </td>
                         ))}
                       </tr>
@@ -744,7 +763,7 @@ export default function Compare() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Employees</td>
                         {businessNames.map(name => (
                           <td key={name} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {metrics && metrics[name] && metrics[name].employees !== null ? metrics[name].employees : 'N/A'}
+                            {metrics && (metrics as any)[name] && (metrics as any)[name].employees !== null ? (metrics as any)[name].employees : 'N/A'}
                           </td>
                         ))}
                       </tr>
@@ -752,7 +771,7 @@ export default function Compare() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Revenue (Est.)</td>
                         {businessNames.map(name => (
                           <td key={name} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {metrics && metrics[name] && metrics[name].revenue !== null ? `$${metrics[name].revenue}M` : 'N/A'}
+                            {metrics && (metrics as any)[name] && (metrics as any)[name].revenue !== null ? `$${(metrics as any)[name].revenue}M` : 'N/A'}
                           </td>
                         ))}
                       </tr>
@@ -760,7 +779,7 @@ export default function Compare() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Growth Rate</td>
                         {businessNames.map(name => (
                           <td key={name} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {metrics && metrics[name] && metrics[name].growthRate !== null ? `${metrics[name].growthRate}%` : 'N/A'}
+                            {metrics && (metrics as any)[name] && (metrics as any)[name].growthRate !== null ? `${(metrics as any)[name].growthRate}%` : 'N/A'}
                           </td>
                         ))}
                       </tr>
@@ -768,7 +787,7 @@ export default function Compare() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Market Share</td>
                         {businessNames.map(name => (
                           <td key={name} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {metrics && metrics[name] && metrics[name].marketShare !== null ? `${metrics[name].marketShare}%` : 'N/A'}
+                            {metrics && (metrics as any)[name] && (metrics as any)[name].marketShare !== null ? `${(metrics as any)[name].marketShare}%` : 'N/A'}
                           </td>
                         ))}
                       </tr>
@@ -776,7 +795,7 @@ export default function Compare() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Market Size (TAM)</td>
                         {businessNames.map(name => (
                           <td key={name} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {metrics && metrics[name] && metrics[name].marketSize !== null ? `$${metrics[name].marketSize}B` : 'N/A'}
+                            {metrics && (metrics as any)[name] && (metrics as any)[name].marketSize !== null ? `$${(metrics as any)[name].marketSize}B` : 'N/A'}
                           </td>
                         ))}
                       </tr>
