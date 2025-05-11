@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect} from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -21,8 +21,6 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [citations, setCitations] = useState([]);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
   
   const {
     register,
@@ -86,8 +84,8 @@ export default function Home() {
       } else {
         throw new Error(responseData.error || 'Failed to generate analysis');
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while generating the analysis');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred while generating the analysis');
     } finally {
       setIsAnalyzing(false);
     }
@@ -97,15 +95,15 @@ export default function Home() {
     setAnalysisResult(null);
   };
 
-  const extractDataFromAnalysis = (analysisText) => {
+  const extractDataFromAnalysis = (analysisText: string | null) => {
     // Default values in case we can't extract data
     const data = {
-      marketSize: null,
-      foundingYear: null,
-      employeeCount: null,
-      fundingAmount: null,
-      revenueEstimate: null,
-      competitors: []
+      marketSize: null as string | null,
+      foundingYear: null as number | null,
+      employeeCount: null as string | null,
+      fundingAmount: null as string | null,
+      revenueEstimate: null as string | null,
+      competitors: [] as string[]
     };
     
     if (!analysisText) return data;
@@ -271,7 +269,7 @@ export default function Home() {
     return data;
   };
 
-  const renderStartupVisualizations = (analysisResult, searchTerm) => {
+  const renderStartupVisualizations = (analysisResult: string | null) => {
     const data = extractDataFromAnalysis(analysisResult);
     
     return (
@@ -336,7 +334,7 @@ export default function Home() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
                 </svg>
                 <p className="mt-2 text-gray-500 text-center">Growth metrics not available</p>
-                <p className="text-sm text-gray-400 text-center mt-1">We couldn't find founding year, employee count, or funding data</p>
+                <p className="text-sm text-gray-400 text-center mt-1">We couldn&apos;t find founding year, employee count, or funding data</p>
               </div>
             )}
           </div>
@@ -355,7 +353,7 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
               </svg>
               <p className="mt-2 text-gray-500 text-center">Competitor data not available</p>
-              <p className="text-sm text-gray-400 text-center mt-1">We couldn't identify specific competitors for this company</p>
+              <p className="text-sm text-gray-400 text-center mt-1">We couldn&apos;t identify specific competitors for this company</p>
             </div>
           )}
         </div>
@@ -685,7 +683,7 @@ export default function Home() {
                     {/* Visualizations - Moved to the top */}
                     {searchType === 'startup' && (
                       <div className="mb-8">
-                        {renderStartupVisualizations(analysisResult, searchTerm)}
+                        {renderStartupVisualizations(analysisResult)}
                       </div>
                     )}
                     

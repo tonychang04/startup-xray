@@ -108,10 +108,10 @@ export async function POST(req: NextRequest) {
       comparison: comparison
     });
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in comparison API:', error);
     return NextResponse.json(
-      { success: false, error: error.message || 'An unexpected error occurred' },
+      { success: false, error: error instanceof Error ? error.message : 'An unexpected error occurred' },
       { status: 500 }
     );
   }
