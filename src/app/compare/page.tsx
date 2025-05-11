@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -25,7 +24,7 @@ export default function Compare() {
   const [error, setError] = useState<string | null>(null);
   const [comparisonResult, setComparisonResult] = useState<string | null>(null);
   const [businessNames, setBusinessNames] = useState<string[]>([]);
-  const [metrics, setMetrics] = useState<any | null>(null);
+  const [metrics, setMetrics] = useState<unknown | null>(null);
   const chartRefs = useRef<{[key: string]: HTMLCanvasElement | null}>({
     funding: null,
     valuation: null,
