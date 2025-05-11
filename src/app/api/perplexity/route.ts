@@ -57,9 +57,10 @@ export async function POST(request: NextRequest) {
          - If exact employee count is not available, provide your best estimate based on company stage and funding
          - Evidence of user growth, partnerships, or notable milestones?
       
-      6. Funding History: 
+      6. Funding & Valuation: 
          - CRITICAL: You MUST state the total funding amount using this exact format: "Has raised $X million in funding"
-         - If exact funding data is not available, provide your best estimate based on company stage and size
+         - CRITICAL: You MUST state the company's valuation using this exact format: "Currently valued at $X billion" or "Currently valued at $X million"
+         - If exact funding or valuation data is not available, provide your best estimate based on company stage and size
          - List notable investors and funding rounds
       
       7. Founders & Team: Who are the founders and key leadership team members? Do they have unique skills or backgrounds?

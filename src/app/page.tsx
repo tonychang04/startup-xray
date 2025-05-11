@@ -102,6 +102,7 @@ export default function Home() {
       foundingYear: null as number | null,
       employeeCount: null as string | null,
       fundingAmount: null as string | null,
+      valuation: null as string | null,
       revenueEstimate: null as string | null,
       competitors: [] as string[]
     };
@@ -213,6 +214,40 @@ export default function Home() {
       }
     }
     
+    // Extract valuation - comprehensive patterns
+    const valuationPatterns = [
+      /valued at (?:over |approximately |about |~)?(\$\d+(?:\.\d+)?(?:\s*[bmtk]illion|\s*[bmtk]n))/i,
+      /valuation of (?:over |approximately |about |~)?(\$\d+(?:\.\d+)?(?:\s*[bmtk]illion|\s*[bmtk]n))/i,
+      /worth (?:over |approximately |about |~)?(\$\d+(?:\.\d+)?(?:\s*[bmtk]illion|\s*[bmtk]n))/i,
+      /currently valued at (?:over |approximately |about |~)?(\$\d+(?:\.\d+)?(?:\s*[bmtk]illion|\s*[bmtk]n))/i,
+      /valuation.*?(\$\d+(?:\.\d+)?(?:\s*[bmtk]illion|\s*[bmtk]n))/i
+    ];
+    
+    for (const pattern of valuationPatterns) {
+      const match = analysisText.match(pattern);
+      if (match) {
+        console.log("Found valuation:", match[1]);
+        data.valuation = match[1];
+        break;
+      }
+    }
+    
+    // Extract revenue estimate - comprehensive patterns
+    const revenuePatterns = [
+      /annual revenue is approximately (\$\d+(?:\.\d+)?(?:\s*[bmtk]illion|\s*[bmtk]n))/i,
+      /revenue estimate is approximately (\$\d+(?:\.\d+)?(?:\s*[bmtk]illion|\s*[bmtk]n))/i,
+      /revenue.*?(\$\d+(?:\.\d+)?(?:\s*[bmtk]illion|\s*[bmtk]n))/i
+    ];
+    
+    for (const pattern of revenuePatterns) {
+      const match = analysisText.match(pattern);
+      if (match) {
+        console.log("Found revenue estimate:", match[1]);
+        data.revenueEstimate = match[1];
+        break;
+      }
+    }
+    
     // Extract competitors - comprehensive patterns
     const competitorPatterns = [
       /competitors include ((?:[A-Za-z0-9\s]+(?:,|and|\.|;)[\s]*)+)/i,
@@ -302,7 +337,7 @@ export default function Home() {
           
           <div className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
             <h4 className="text-lg font-medium text-gray-900 mb-3">Company Growth</h4>
-            {(data.foundingYear || data.employeeCount || data.fundingAmount) ? (
+            {(data.foundingYear || data.employeeCount || data.fundingAmount || data.valuation) ? (
               <div className="grid grid-cols-1 gap-4">
                 {data.foundingYear && (
                   <div className="bg-gray-50 p-3 rounded-lg">
@@ -311,6 +346,13 @@ export default function Home() {
                     <p className="text-sm text-gray-500">
                       {new Date().getFullYear() - data.foundingYear} years in business
                     </p>
+                  </div>
+                )}
+                
+                {data.valuation && (
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-sm text-gray-500">Valuation</p>
+                    <p className="text-xl font-semibold">{data.valuation}</p>
                   </div>
                 )}
                 
