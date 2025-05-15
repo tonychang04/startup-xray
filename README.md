@@ -1,6 +1,7 @@
 # Startup X-Ray
 
 VC-Style Analysis in Seconds - Know any startup or founder before you meet them.
+<img width="811" alt="Screenshot 2025-05-14 at 20 20 42" src="https://github.com/user-attachments/assets/541cc228-09fd-4650-86ec-cb2c6027299b" />
 
 ## Overview
 
@@ -32,6 +33,9 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 For Production:
 https://www.startupxray.com/
+
+<img width="849" alt="Screenshot 2025-05-14 at 20 21 04" src="https://github.com/user-attachments/assets/c24d3288-81ae-4779-bfdb-e86b89e0c8ce" />
+<img width="814" alt="Screenshot 2025-05-14 at 20 21 47" src="https://github.com/user-attachments/assets/6e8b5169-38fb-44d8-914e-ff3537baf8fc" />
 
 ## Technology Stack
 
