@@ -590,7 +590,10 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl md:text-6xl">
+          <h1 
+            className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl md:text-6xl cursor-pointer hover:text-blue-700 transition-colors"
+            onClick={resetAnalysis}
+          >
             <span className="block">Startup X-Ray</span>
             <span className="block text-blue-600">VC-Style Analysis in Seconds</span>
           </h1>
