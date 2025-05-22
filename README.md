@@ -41,8 +41,8 @@ https://www.startupxray.com/
 
 - **Frontend**: Next.js, React, Tailwind CSS
 - **Charts**: Chart.js
-- **Form Handling**: React Hook Form with Zod validation
-- **Authentication**: Firebase Authentication
+- **Form Handling**: React Hook Form 
+- **Authentication**: Google Auth
 - **AI Integration**: Perplexity AI API
 
 ## Project Structure
