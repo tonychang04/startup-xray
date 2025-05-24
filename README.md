@@ -29,9 +29,16 @@ pnpm dev
 bun dev
 ```
 
+Add the keys below to run locally
+
+
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+PERPLEXITY_API_KEY=...
+
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-For Production:
+For Production visit:
 https://www.startupxray.com/
 
 <img width="849" alt="Screenshot 2025-05-14 at 20 21 04" src="https://github.com/user-attachments/assets/c24d3288-81ae-4779-bfdb-e86b89e0c8ce" />
